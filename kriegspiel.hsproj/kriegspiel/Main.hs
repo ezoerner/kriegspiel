@@ -13,33 +13,34 @@ import qualified Data.Map as M
 import           System.FilePath ((</>))
 import           System.Directory
 import qualified Helm.Keyboard as Keyboard
+import qualified Helm.Window as Window
 
-windowDims :: V2 Int
-windowDims = V2 640 480
+initialWindowDims :: V2 Int
+initialWindowDims = V2 640 480
 
-imageDims :: V2 Double
-imageDims = V2 650 480
-
-data Action = Idle
-data Model = Model
+data Action = Idle | ResizeWindow (V2 Int)
+data Model = Model (V2 Int)
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model, Cmd.none)
+initial = (Model initialWindowDims, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
+update model (ResizeWindow v2) = (Model v2, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
-subscriptions =  Sub.none
+subscriptions =  Window.resizes (\(V2 x y) -> ResizeWindow $ V2 x y)
+
 
 view :: M.Map String (Image SDLEngine) -> Model -> Graphics SDLEngine
-view assets current = Graphics2D $ collage [image imageDims $ assets M.! "w_queen"]
+view assets (Model windowDims) = Graphics2D $ collage
+  [image (fromIntegral <$> windowDims) $ assets M.! "w_queen"]
 
 main :: IO ()
 main = do
   engine <- SDL.startupWith $ SDL.defaultConfig
-    { SDL.windowIsResizable = False
-    , SDL.windowDimensions = windowDims
+    { SDL.windowIsResizable = True
+    , SDL.windowDimensions = initialWindowDims
     }
     
   imageDir <- (</> "images") <$> getCurrentDirectory
