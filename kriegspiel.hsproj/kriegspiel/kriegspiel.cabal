@@ -4,6 +4,23 @@ cabal-version: 1.22
 build-type: Simple
 license: AllRightsReserved
 stability: experimental
+data-files:
+    w_pawn_png_withShadow.png
+    "square brown light_png.png"
+    w_rook_png_withShadow.png
+    w_knight_png_withShadow.png
+    b_knight_png_withShadow.png
+    b_bishop_png_withShadow.png
+    b_rook_png_withShadow.png
+    b_king_png_withShadow.png
+    b_queen_png_withShadow.png
+    w_bishop_png_withShadow.png
+    "square brown dark_png.png"
+    "square gray dark _png.png"
+    w_queen_png_withShadow.png
+    "square gray light _png.png"
+    b_pawn_png_withShadow.png
+    w_king_png_withShadow.png
 x-ghc-framework-version: 8.0.2-9.6-1
 x-last-ide-version: HfM1.6.0
 
