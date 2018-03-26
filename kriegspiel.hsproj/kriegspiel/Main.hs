@@ -55,6 +55,7 @@ main = do
     { SDL.windowIsResizable = True
     , SDL.windowDimensions = initialWindowDims
     , SDL.windowIsFullscreen = False
+    , SDL.windowTitle = "Kriegspiel"
     }
     
   imageDir <- (</> "images") <$> getCurrentDirectory
