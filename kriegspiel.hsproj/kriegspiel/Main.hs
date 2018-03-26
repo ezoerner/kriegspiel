@@ -15,32 +15,46 @@ import           System.Directory
 import qualified Helm.Keyboard as Keyboard
 import qualified Helm.Window as Window
 
-initialWindowDims :: V2 Int
-initialWindowDims = V2 640 480
-
 data Action = Idle | ResizeWindow (V2 Int)
-data Model = Model (V2 Int)
+data Model = Model (V2 Int) String
+
+border :: Num a => V2 a
+border = V2 20 20
+
+constrainSquare :: Ord a => V2 a -> V2 a
+constrainSquare (V2 x y) = let
+    m = x `min` y
+  in
+    V2 m m
+
+calcBoardSize :: (Num a, Ord a) => V2 a -> V2 a
+calcBoardSize windowDims = constrainSquare $ windowDims - 2 * border
+
+initialWindowDims :: V2 Int
+initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model initialWindowDims, Cmd.none)
+initial = (Model (calcBoardSize initialWindowDims) "w_queen", Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update model (ResizeWindow v2) = (Model v2, Cmd.none)
+update (Model _ imgName) (ResizeWindow newWindowDims) = (Model (calcBoardSize newWindowDims) imgName, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
 subscriptions =  Window.resizes (\(V2 x y) -> ResizeWindow $ V2 x y)
 
-
-view :: M.Map String (Image SDLEngine) -> Model -> Graphics SDLEngine
-view assets (Model windowDims) = Graphics2D $ collage
-  [image (fromIntegral <$> windowDims) $ assets M.! "w_queen"]
+view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
+view assets engine (Model boardSize imageKey) = let
+    im = assets M.! imageKey
+  in
+    Graphics2D $ collage [move border (image (fromIntegral <$> boardSize) im)]
 
 main :: IO ()
 main = do
   engine <- SDL.startupWith $ SDL.defaultConfig
     { SDL.windowIsResizable = True
     , SDL.windowDimensions = initialWindowDims
+    , SDL.windowIsFullscreen = False
     }
     
   imageDir <- (</> "images") <$> getCurrentDirectory
@@ -72,5 +86,5 @@ main = do
       { initialFn       = initial
       , updateFn        = update
       , subscriptionsFn = subscriptions
-      , viewFn          = view allAssets
+      , viewFn          = view allAssets engine
       }
