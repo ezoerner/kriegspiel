@@ -1,10 +1,17 @@
 module Board where
 
-import Foundation (ifThenElse)  
-import Helm.Graphics2D
-import Helm.Asset
-import Helm.Engine (Engine)
-import Linear.V2 (V2(V2))
+import           Foundation (ifThenElse)  
+import           Helm.Graphics2D
+import           Helm.Asset
+import           Helm.Engine (Engine)
+import           Linear.V2 (V2(V2))
+import           Data.Array
+
+data Player = White | Black
+  deriving (Eq, Show)
+  
+data Piece = Pawn | Bishop | Knight | Rook | Queen | King
+  deriving (Show, Eq)
 
 form :: Engine e => Image e -> Image e -> Int -> Form e
 form lightSquare darkSquare boardSide = let
@@ -18,3 +25,8 @@ form lightSquare darkSquare boardSide = let
                       , y <- [0..7]
                       , let hOffset = x * squareSide
                       , let vOffset = y * squareSide]                 
+
+initialBoard :: Array (Char, Int) (Maybe (Piece, Player))
+initialBoard = array (('a', 1),('h', 8)) [
+  (('a', 1), Just (Rook, White))
+  ]

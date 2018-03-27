@@ -12,6 +12,7 @@ import qualified Helm.Engine.SDL as SDL
 import qualified Helm.Sub as Sub
 
 import qualified Data.Map as M
+import           Data.Array
 import           System.FilePath ((</>))
 import           System.Directory
 import qualified Helm.Keyboard as Keyboard
@@ -19,9 +20,11 @@ import qualified Helm.Window as Window
 import           Board
 
 data Action = DoNothing | ResizeWindow (V2 Int) | ToggleBoardColor
+
 data Model = Model {
-  windowDims :: (V2 Int)
+    windowDims :: (V2 Int)
   , boardColor :: BoardColor
+  , board :: Array (Char, Int) (Maybe (Piece, Player))
 }
 
 data BoardColor = Brown | Gray
@@ -46,13 +49,12 @@ initialWindowDims :: Num a => V2 a
 initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model initialWindowDims Brown, Cmd.none)
+initial = (Model initialWindowDims Brown initialBoard, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update (Model {boardColor = boardColor}) (ResizeWindow newWindowDims) =
-  (Model newWindowDims boardColor, Cmd.none)
-update model@(Model {boardColor = Brown}) ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
-update model@(Model {boardColor = Gray}) ToggleBoardColor = (model {boardColor = Brown}, Cmd.none)
+update model (ResizeWindow newWindowDims) = (model {windowDims = newWindowDims}, Cmd.none)
+update model@Model {boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
+update model@Model {boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown}, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
@@ -65,7 +67,7 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets engine (Model windDims boardColor) = let
+view assets engine Model {windowDims = windDims, boardColor = boardColor} = let
     showBoardColor = fmap toLower (show boardColor)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
     darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")

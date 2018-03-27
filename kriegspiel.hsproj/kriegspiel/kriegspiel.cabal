@@ -32,6 +32,7 @@ executable kriegspiel
         containers -any,
         foundation -any,
         directory -any,
+        array -any,
         base -any,
         helm -any,
         linear -any,
