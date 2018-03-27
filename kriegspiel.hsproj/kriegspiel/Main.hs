@@ -19,7 +19,10 @@ import qualified Helm.Window as Window
 import           Board
 
 data Action = DoNothing | ResizeWindow (V2 Int) | ToggleBoardColor
-data Model = Model (V2 Int) BoardColor
+data Model = Model {
+  windowDims :: (V2 Int)
+  , boardColor :: BoardColor
+}
 
 data BoardColor = Brown | Gray
   deriving (Eq, Show)
@@ -46,10 +49,10 @@ initial :: (Model, Cmd SDLEngine Action)
 initial = (Model initialWindowDims Brown, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update (Model _ boardColor) (ResizeWindow newWindowDims) =
+update (Model {boardColor = boardColor}) (ResizeWindow newWindowDims) =
   (Model newWindowDims boardColor, Cmd.none)
-update (Model windDims Brown) ToggleBoardColor = (Model windDims Gray, Cmd.none)
-update (Model windDims Gray) ToggleBoardColor = (Model windDims Brown, Cmd.none)
+update model@(Model {boardColor = Brown}) ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
+update model@(Model {boardColor = Gray}) ToggleBoardColor = (model {boardColor = Brown}, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
@@ -69,7 +72,7 @@ view assets engine (Model windDims boardColor) = let
   in
     Graphics2D $ collage [
       background (fromIntegral <$> windDims)
-      , move border $ Board.form lightSquare darkSquare (calcBoardSize windDims)]
+      , move border $ Board.form lightSquare darkSquare $ calcBoardSize windDims]
 
 main :: IO ()
 main = do
