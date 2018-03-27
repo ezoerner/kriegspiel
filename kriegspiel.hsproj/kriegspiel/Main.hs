@@ -24,7 +24,7 @@ data Action = DoNothing | ResizeWindow (V2 Int) | ToggleBoardColor
 data Model = Model {
     windowDims :: (V2 Int)
   , boardColor :: BoardColor
-  , board :: Array (Char, Int) (Maybe (Piece, Player))
+  , board :: Board
 }
 
 data BoardColor = Brown | Gray
@@ -67,14 +67,16 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets engine Model {windowDims = windDims, boardColor = boardColor} = let
+view assets engine Model {windowDims = windDims, boardColor = boardColor, board = board} = let
     showBoardColor = fmap toLower (show boardColor)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
     darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
+    boardSize = calcBoardSize windDims
   in
     Graphics2D $ collage [
       background (fromIntegral <$> windDims)
-      , move border $ Board.form lightSquare darkSquare $ calcBoardSize windDims]
+      , move border $ boardForm lightSquare darkSquare boardSize
+      , move border $ piecesForm boardSize board assets]
 
 main :: IO ()
 main = do
@@ -116,3 +118,5 @@ main = do
       , subscriptionsFn = subscriptions
       , viewFn          = view allAssets engine
       }
+      
+
