@@ -19,7 +19,7 @@ import qualified Helm.Window as Window
 import           Board
 
 data Action = DoNothing | ResizeWindow (V2 Int) | ToggleBoardColor
-data Model = Model Int BoardColor
+data Model = Model (V2 Int) BoardColor
 
 data BoardColor = Brown | Gray
   deriving (Eq, Show)
@@ -27,28 +27,34 @@ data BoardColor = Brown | Gray
 border :: Num a => V2 a
 border = V2 50 50 
 
+backgroundColor :: Color
+backgroundColor = rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
+
+background :: (V2 Double) -> Form e
+background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
+
 constrainSquare :: Ord a => V2 a -> a
 constrainSquare (V2 x y) = x `min` y
 
 calcBoardSize :: (Num a, Ord a) => V2 a -> a
 calcBoardSize windowDims = constrainSquare $ windowDims - 2 * border
 
-initialWindowDims :: V2 Int
+initialWindowDims :: Num a => V2 a
 initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model (calcBoardSize initialWindowDims) Brown, Cmd.none)
+initial = (Model initialWindowDims Brown, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update (Model _ boardColor) (ResizeWindow newWindowDims) =
-  (Model (calcBoardSize newWindowDims) boardColor, Cmd.none)
-update (Model boardSize Brown) ToggleBoardColor = (Model boardSize Gray, Cmd.none)
-update (Model boardSize Gray) ToggleBoardColor = (Model boardSize Brown, Cmd.none)
+  (Model newWindowDims boardColor, Cmd.none)
+update (Model windDims Brown) ToggleBoardColor = (Model windDims Gray, Cmd.none)
+update (Model windDims Gray) ToggleBoardColor = (Model windDims Brown, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
-  [Window.resizes (\(V2 x y) -> ResizeWindow $ V2 x y)
+  [Window.resizes ResizeWindow
   , Keyboard.presses $ \key -> (case key of
       Keyboard.BKey -> ToggleBoardColor
       _             -> DoNothing)
@@ -56,12 +62,14 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets engine (Model boardSize boardColor) = let
-    mapToLower = fmap toLower
-    lightSquare = assets M.! ("square_" ++ mapToLower (show boardColor) ++ "_light")
-    darkSquare = assets M.! ("square_" ++ mapToLower (show boardColor) ++ "_dark")
+view assets engine (Model windDims boardColor) = let
+    showBoardColor = fmap toLower (show boardColor)
+    lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
+    darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
   in
-    Graphics2D $ collage [move border $ Board.form lightSquare darkSquare boardSize]
+    Graphics2D $ collage [
+      background (fromIntegral <$> windDims)
+      , move border $ Board.form lightSquare darkSquare (calcBoardSize windDims)]
 
 main :: IO ()
 main = do
