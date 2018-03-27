@@ -27,10 +27,7 @@ border :: Num a => V2 a
 border = V2 50 50 
 
 constrainSquare :: Ord a => V2 a -> a
-constrainSquare (V2 x y) = let
-    m = x `min` y
-  in
-    m
+constrainSquare (V2 x y) = x `min` y
 
 calcBoardSize :: (Num a, Ord a) => V2 a -> a
 calcBoardSize windowDims = constrainSquare $ windowDims - 2 * border
