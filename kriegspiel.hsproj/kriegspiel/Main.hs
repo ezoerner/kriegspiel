@@ -14,40 +14,42 @@ import           System.FilePath ((</>))
 import           System.Directory
 import qualified Helm.Keyboard as Keyboard
 import qualified Helm.Window as Window
+import           Board
 
 data Action = Idle | ResizeWindow (V2 Int)
-data Model = Model (V2 Int) String
+data Model = Model Int
 
 border :: Num a => V2 a
-border = V2 20 20
+border = V2 50 50 
 
-constrainSquare :: Ord a => V2 a -> V2 a
+constrainSquare :: Ord a => V2 a -> a
 constrainSquare (V2 x y) = let
     m = x `min` y
   in
-    V2 m m
+    m
 
-calcBoardSize :: (Num a, Ord a) => V2 a -> V2 a
+calcBoardSize :: (Num a, Ord a) => V2 a -> a
 calcBoardSize windowDims = constrainSquare $ windowDims - 2 * border
 
 initialWindowDims :: V2 Int
 initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model (calcBoardSize initialWindowDims) "w_queen", Cmd.none)
+initial = (Model (calcBoardSize initialWindowDims), Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update (Model _ imgName) (ResizeWindow newWindowDims) = (Model (calcBoardSize newWindowDims) imgName, Cmd.none)
+update (Model _) (ResizeWindow newWindowDims) = (Model (calcBoardSize newWindowDims), Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
 subscriptions =  Window.resizes (\(V2 x y) -> ResizeWindow $ V2 x y)
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets engine (Model boardSize imageKey) = let
-    im = assets M.! imageKey
+view assets engine (Model boardSize) = let
+    lightSquare = assets M.! "square_brown_light"
+    darkSquare = assets M.! "square_brown_dark"
   in
-    Graphics2D $ collage [move border $ image (fromIntegral <$> boardSize) im]
+    Graphics2D $ collage [move border $ Board.form lightSquare darkSquare boardSize]
 
 main :: IO ()
 main = do
