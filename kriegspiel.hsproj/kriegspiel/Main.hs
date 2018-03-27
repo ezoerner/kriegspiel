@@ -47,7 +47,7 @@ view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngi
 view assets engine (Model boardSize imageKey) = let
     im = assets M.! imageKey
   in
-    Graphics2D $ collage [move border (image (fromIntegral <$> boardSize) im)]
+    Graphics2D $ collage [move border $ image (fromIntegral <$> boardSize) im]
 
 main :: IO ()
 main = do
