@@ -1,10 +1,11 @@
+import Data.Char (toLower)
 import Linear.V2 (V2(V2))
 
 import Helm
 import Helm.Color
 import Helm.Engine.SDL (SDLEngine)
 import Helm.Graphics2D
-import Foundation (ifThenElse)
+-- import Foundation (ifThenElse)
 
 import qualified Helm.Cmd as Cmd
 import qualified Helm.Engine.SDL as SDL
@@ -21,7 +22,7 @@ data Action = DoNothing | ResizeWindow (V2 Int) | ToggleBoardColor
 data Model = Model Int BoardColor
 
 data BoardColor = Brown | Gray
-  deriving (Eq)
+  deriving (Eq, Show)
 
 border :: Num a => V2 a
 border = V2 50 50 
@@ -56,8 +57,9 @@ subscriptions = Sub.batch
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
 view assets engine (Model boardSize boardColor) = let
-    lightSquare = assets M.! ifThenElse (boardColor == Brown) "square_brown_light" "square_gray_light"
-    darkSquare = assets M.! ifThenElse (boardColor == Brown) "square_brown_dark" "square_gray_dark"
+    mapToLower = fmap toLower
+    lightSquare = assets M.! ("square_" ++ mapToLower (show boardColor) ++ "_light")
+    darkSquare = assets M.! ("square_" ++ mapToLower (show boardColor) ++ "_dark")
   in
     Graphics2D $ collage [move border $ Board.form lightSquare darkSquare boardSize]
 

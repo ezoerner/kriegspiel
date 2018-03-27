@@ -13,8 +13,8 @@ form lightSquare darkSquare boardSide = let
     chooseImage x y = ifThenElse ((x + y) `mod` 2 == 0) lightSquare darkSquare
     mkForm x y = image imageDims $ chooseImage x y
   in
-    toForm $ collage [move (V2 h v) $ mkForm (floor x) $ floor y |
-                         x <- [0..7]
-                       , y <- [0..7]
-                       , let h = x * squareSide
-                       , let v = y * squareSide]                 
+    toForm $ collage [move (V2 hOffset vOffset) $ mkForm (floor x) $ floor y |
+                        x <- [0..7]
+                      , y <- [0..7]
+                      , let hOffset = x * squareSide
+                      , let vOffset = y * squareSide]                 
