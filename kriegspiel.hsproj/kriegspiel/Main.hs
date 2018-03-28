@@ -8,6 +8,7 @@ import Helm.Graphics2D
 -- import Foundation (ifThenElse)
 
 import qualified Helm.Cmd as Cmd
+import qualified Helm.Mouse as Mouse
 import qualified Helm.Engine.SDL as SDL
 import qualified Helm.Sub as Sub
 
@@ -19,16 +20,17 @@ import qualified Helm.Keyboard as Keyboard
 import qualified Helm.Window as Window
 import           Board
 
-data Action = DoNothing | ResizeWindow (V2 Int) | ToggleBoardColor
+data Action = DoNothing |
+  ResizeWindow (V2 Int) |
+  ToggleBoardColor |
+  StartDrag (V2 Int) |
+  Drop (V2 Int)
 
 data Model = Model {
     windowDims :: (V2 Int)
   , boardColor :: BoardColor
   , board :: Board
 }
-
-data BoardColor = Brown | Gray
-  deriving (Eq, Show)
 
 border :: Num a => V2 a
 border = V2 100 100 
@@ -49,20 +51,28 @@ initialWindowDims :: Num a => V2 a
 initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model initialWindowDims Brown initialBoard, Cmd.none)
+initial = (Model initialWindowDims Brown initialPosition, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update model (ResizeWindow newWindowDims) = (model {windowDims = newWindowDims}, Cmd.none)
 update model@Model {boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
 update model@Model {boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown}, Cmd.none)
+update model (StartDrag loc) = (model, Cmd.none)
+update model (Drop loc) = (model, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
   [Window.resizes ResizeWindow
-  , Keyboard.presses $ \key -> (case key of
+  , Keyboard.presses $ \key -> case key of
       Keyboard.BKey -> ToggleBoardColor
-      _             -> DoNothing)
+      _             -> DoNothing
+  , Mouse.downs $ \button loc -> case button of
+      Mouse.LeftButton -> StartDrag loc
+      _                -> DoNothing
+  , Mouse.ups $ \button loc -> case button of
+      Mouse.LeftButton -> Drop loc
+      _                -> DoNothing
   ]
 
 
