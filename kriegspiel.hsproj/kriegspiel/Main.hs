@@ -31,7 +31,7 @@ data BoardColor = Brown | Gray
   deriving (Eq, Show)
 
 border :: Num a => V2 a
-border = V2 50 50 
+border = V2 100 100 
 
 backgroundColor :: Color
 backgroundColor = rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)

@@ -57,10 +57,10 @@ boardForm :: Engine e => Image e -> Image e -> Int -> Form e
 boardForm lightSquare darkSquare boardSize = let
     squareSize = fromIntegral boardSize / 8
     imageDims = V2 squareSize squareSize
-    chooseImage x y = ifThenElse ((x + y) `mod` 2 == 0) lightSquare darkSquare
+    chooseImage x y = ifThenElse (floor (x + y) `mod` 2 == 0) lightSquare darkSquare
     mkForm x y = image imageDims $ chooseImage x y
   in
-    toForm $ collage [move (V2 hOffset vOffset) $ mkForm (floor x) $ floor y |
+    toForm $ collage [move (V2 hOffset vOffset) $ mkForm x y |
                         x <- [0..7]
                       , y <- [0..7]
                       , let hOffset = x * squareSize
