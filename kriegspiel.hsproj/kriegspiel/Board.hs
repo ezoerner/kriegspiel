@@ -18,7 +18,10 @@ data Piece = Piece {
     pieceType :: PieceType
   , player :: Player
   , hasMoved :: Bool
+  , inDrag :: Bool
   }
+  
+mkPiece pieceType player = Piece pieceType player False False
 
 data BoundingBox = BBox {
     topLeft :: V2 Double
@@ -44,38 +47,38 @@ data BoardColor = Brown | Gray
 
 initialPosition :: Board
 initialPosition = array (('a', 1),('h', 8)) $ [
-    (('a', 1), Just $ Piece Rook White False)
-  , (('b', 1), Just $ Piece Knight White False)
-  , (('c', 1), Just $ Piece Bishop White False)
-  , (('d', 1), Just $ Piece Queen White False)
-  , (('e', 1), Just $ Piece King White False)
-  , (('f', 1), Just $ Piece Bishop White False)
-  , (('g', 1), Just $ Piece Knight White False)
-  , (('h', 1), Just $ Piece Rook White False)
-  , (('a', 2), Just $ Piece Pawn White False)
-  , (('b', 2), Just $ Piece Pawn White False)
-  , (('c', 2), Just $ Piece Pawn White False)
-  , (('d', 2), Just $ Piece Pawn White False)
-  , (('e', 2), Just $ Piece Pawn White False)
-  , (('f', 2), Just $ Piece Pawn White False)
-  , (('g', 2), Just $ Piece Pawn White False)
-  , (('h', 2), Just $ Piece Pawn White False)
-  , (('a', 8), Just $ Piece Rook Black False)
-  , (('b', 8), Just $ Piece Knight Black False)
-  , (('c', 8), Just $ Piece Bishop Black False)
-  , (('d', 8), Just $ Piece Queen Black False)
-  , (('e', 8), Just $ Piece King Black False)
-  , (('f', 8), Just $ Piece Bishop Black False)
-  , (('g', 8), Just $ Piece Knight Black False)
-  , (('h', 8), Just $ Piece Rook Black False)
-  , (('a', 7), Just $ Piece Pawn Black False)
-  , (('b', 7), Just $ Piece Pawn Black False)
-  , (('c', 7), Just $ Piece Pawn Black False)
-  , (('d', 7), Just $ Piece Pawn Black False)
-  , (('e', 7), Just $ Piece Pawn Black False)
-  , (('f', 7), Just $ Piece Pawn Black False)
-  , (('g', 7), Just $ Piece Pawn Black False)
-  , (('h', 7), Just $ Piece Pawn Black False)
+    (('a', 1), Just $ mkPiece Rook White)
+  , (('b', 1), Just $ mkPiece Knight White)
+  , (('c', 1), Just $ mkPiece Bishop White)
+  , (('d', 1), Just $ mkPiece Queen White)
+  , (('e', 1), Just $ mkPiece King White)
+  , (('f', 1), Just $ mkPiece Bishop White)
+  , (('g', 1), Just $ mkPiece Knight White)
+  , (('h', 1), Just $ mkPiece Rook White)
+  , (('a', 2), Just $ mkPiece Pawn White)
+  , (('b', 2), Just $ mkPiece Pawn White)
+  , (('c', 2), Just $ mkPiece Pawn White)
+  , (('d', 2), Just $ mkPiece Pawn White)
+  , (('e', 2), Just $ mkPiece Pawn White)
+  , (('f', 2), Just $ mkPiece Pawn White)
+  , (('g', 2), Just $ mkPiece Pawn White)
+  , (('h', 2), Just $ mkPiece Pawn White)
+  , (('a', 8), Just $ mkPiece Rook Black)
+  , (('b', 8), Just $ mkPiece Knight Black)
+  , (('c', 8), Just $ mkPiece Bishop Black)
+  , (('d', 8), Just $ mkPiece Queen Black)
+  , (('e', 8), Just $ mkPiece King Black)
+  , (('f', 8), Just $ mkPiece Bishop Black)
+  , (('g', 8), Just $ mkPiece Knight Black)
+  , (('h', 8), Just $ mkPiece Rook Black)
+  , (('a', 7), Just $ mkPiece Pawn Black)
+  , (('b', 7), Just $ mkPiece Pawn Black)
+  , (('c', 7), Just $ mkPiece Pawn Black)
+  , (('d', 7), Just $ mkPiece Pawn Black)
+  , (('e', 7), Just $ mkPiece Pawn Black)
+  , (('f', 7), Just $ mkPiece Pawn Black)
+  , (('g', 7), Just $ mkPiece Pawn Black)
+  , (('h', 7), Just $ mkPiece Pawn Black)
   ] ++ [((file, rank), Nothing) | file <- ['a'..'h'], rank <- [3..6]]
 
 boardForm :: Engine e => Image e -> Image e -> Int -> Form e
@@ -91,8 +94,8 @@ boardForm lightSquare darkSquare boardSize = let
                       , let hOffset = x * ssize
                       , let vOffset = y * ssize]
                       
-piecesForm :: Engine e => Int -> Board -> M.Map String (Image e) -> Form e
-piecesForm boardSize board assets = let
+piecesForm :: Engine e => Int -> Board -> M.Map String (Image e) -> V2 Int -> Form e
+piecesForm boardSize board assets mousePos = let
     showPlayer player = toLower (head $ show player)
     showPieceType pieceType = fmap toLower $ show pieceType
     chooseImage piece = assets M.! ((showPlayer $ player piece) : "_" ++ (showPieceType $ pieceType piece))
@@ -100,19 +103,23 @@ piecesForm boardSize board assets = let
     imageDims = V2 ssize ssize
     mkForm piece = image imageDims $ chooseImage piece
     pieceImage Nothing _ _ = blank
-    pieceImage (Just piece) file rank = move (V2 (hOffset ssize file) $ vOffset ssize rank) $ mkForm piece
+    pieceImage (Just piece@Piece {inDrag = True}) _ _ =
+      toForm $ center (fromIntegral <$> mousePos) $ collage [mkForm piece]
+    pieceImage (Just piece) file rank =
+      move (V2 (hOffset ssize file) $ vOffset ssize rank) $ mkForm piece
   in
     toForm $ collage [pieceImage maybePiece file rank |
                         file <- ['a'..'h'],
                         rank <- [1..8],
                         let maybePiece = board ! (file, rank)]
-                        
-findPiece :: Board -> Int -> V2 Int -> Maybe Piece
+                          
+findPiece :: Board -> Int -> V2 Int -> Maybe (BoardSquare, Piece)
 findPiece board boardSize point = let
     testPoint = fromIntegral <$> point
     ssize = squareSize boardSize
     pieceInSquare :: (BoardSquare, Maybe Piece) -> Bool
-    pieceInSquare ((file, rank), maybePiece) = let
+    pieceInSquare (_, Nothing) = False
+    pieceInSquare ((file, rank), _) = let
         topLeft = V2 (hOffset ssize file) (vOffset ssize rank)
         bottomRight = fmap (+ ssize) topLeft
         bbox = BBox topLeft bottomRight
@@ -120,7 +127,9 @@ findPiece board boardSize point = let
         pointIntersects testPoint bbox
     assoc = find pieceInSquare (assocs board)
   in
-    join $ fmap snd assoc
+    case assoc of
+      Just (boardSquare, Just piece) -> Just (boardSquare, piece)
+      _ -> Nothing
 
 squareSize :: Int -> Double
 squareSize boardSize = fromIntegral boardSize / 8

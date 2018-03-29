@@ -23,6 +23,7 @@ import           Board
 data Action = DoNothing |
   ResizeWindow (V2 Int) |
   ToggleBoardColor |
+  MoveMouse (V2 Int) |
   StartDrag (V2 Int) |
   Drop (V2 Int)
 
@@ -30,6 +31,7 @@ data Model = Model {
     windowDims :: (V2 Int)
   , boardColor :: BoardColor
   , board :: Board
+  , mousePos :: V2 Int
 }
 
 border :: Num a => V2 a
@@ -51,14 +53,23 @@ initialWindowDims :: Num a => V2 a
 initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model initialWindowDims Brown initialPosition, Cmd.none)
+initial = (Model initialWindowDims Brown initialPosition (V2 0 0), Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update model (ResizeWindow newWindowDims) = (model {windowDims = newWindowDims}, Cmd.none)
 update model@Model {boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
-update model@Model {boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown}, Cmd.none)
-update model (StartDrag loc) = (model, Cmd.none)
+update model@Model {boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
+update model@Model {board = board, windowDims = windowDims} (StartDrag loc) =  let
+    maybeBoardSquareAndPiece = findPiece board (calcBoardSize windowDims) loc
+  in
+    case maybeBoardSquareAndPiece of
+      Nothing -> (model, Cmd.none)
+      Just (boardSquare, piece) -> model {board // [()]} 
+
+
+--(model, Cmd.none)
 update model (Drop loc) = (model, Cmd.none)
+update model (MoveMouse loc) = (model {mousePos = loc}, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
@@ -73,11 +84,16 @@ subscriptions = Sub.batch
   , Mouse.ups $ \button loc -> case button of
       Mouse.LeftButton -> Drop loc
       _                -> DoNothing
+  , Mouse.moves $ \loc -> MoveMouse loc
   ]
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets engine Model {windowDims = windDims, boardColor = boardColor, board = board} = let
+view assets engine Model {
+    windowDims = windDims
+  , boardColor = boardColor
+  , board = board
+  , mousePos = mousePos} = let
     showBoardColor = fmap toLower (show boardColor)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
     darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
@@ -86,7 +102,7 @@ view assets engine Model {windowDims = windDims, boardColor = boardColor, board 
     Graphics2D $ collage [
       background (fromIntegral <$> windDims)
       , move border $ boardForm lightSquare darkSquare boardSize
-      , move border $ piecesForm boardSize board assets]
+      , move border $ piecesForm boardSize board assets mousePos]
 
 main :: IO ()
 main = do
