@@ -1,3 +1,5 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 import Data.Char (toLower)
 import Linear.V2 (V2(V2))
 
@@ -49,6 +51,10 @@ constrainSquare (V2 x y) = x `min` y
 calcBoardSize :: (Num a, Ord a) => V2 a -> a
 calcBoardSize windowDims = constrainSquare $ windowDims - 2 * border
 
+calcBoardBBox :: (Integral a, Ord a) => V2 a -> BoundingSquare
+calcBoardBBox windowDims = BSquare { side = fromIntegral $ calcBoardSize windowDims,
+                                     topLeft = fromIntegral <$> border}
+
 initialWindowDims :: Num a => V2 a
 initialWindowDims = V2 640 640
 
@@ -56,20 +62,17 @@ initial :: (Model, Cmd SDLEngine Action)
 initial = (Model initialWindowDims Brown initialPosition (V2 0 0), Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update model (ResizeWindow newWindowDims) = (model {windowDims = newWindowDims}, Cmd.none)
+update model (ResizeWindow windowDims) = (model {windowDims}, Cmd.none)
 update model@Model {boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
 update model@Model {boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
-update model@Model {board = board, windowDims = windowDims} (StartDrag loc) =  let
-    maybeBoardSquareAndPiece = findPiece board (calcBoardSize windowDims) loc
+update model@Model {board = board, windowDims} (StartDrag loc) =  let
+    maybeBoardSquareAndPiece = findPiece (calcBoardBBox windowDims) board loc
   in
     case maybeBoardSquareAndPiece of
       Nothing -> (model, Cmd.none)
-      Just (boardSquare, piece) -> model {board // [()]} 
-
-
---(model, Cmd.none)
+      Just (boardSquare, piece) -> (model {board = board // [(boardSquare, Just (piece {inDrag = True}))]}, Cmd.none)
 update model (Drop loc) = (model, Cmd.none)
-update model (MoveMouse loc) = (model {mousePos = loc}, Cmd.none)
+update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
@@ -90,19 +93,19 @@ subscriptions = Sub.batch
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
 view assets engine Model {
-    windowDims = windDims
-  , boardColor = boardColor
-  , board = board
-  , mousePos = mousePos} = let
+    windowDims
+  , boardColor
+  , board
+  , mousePos} = let
     showBoardColor = fmap toLower (show boardColor)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
     darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
-    boardSize = calcBoardSize windDims
+    boardSize = calcBoardSize windowDims
   in
     Graphics2D $ collage [
-      background (fromIntegral <$> windDims)
+      background (fromIntegral <$> windowDims)
       , move border $ boardForm lightSquare darkSquare boardSize
-      , move border $ piecesForm boardSize board assets mousePos]
+      , move border $ piecesForm (calcBoardBBox windowDims) board assets mousePos]
 
 main :: IO ()
 main = do

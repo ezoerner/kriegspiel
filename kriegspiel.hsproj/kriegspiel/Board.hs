@@ -1,4 +1,6 @@
-module Board (Board, BoardColor(Brown, Gray), initialPosition, boardForm, piecesForm, findPiece) where
+{-# LANGUAGE NamedFieldPuns #-}
+
+module Board (Piece(..), BoundingSquare(..), Board, BoardColor(Brown, Gray), initialPosition, boardForm, piecesForm, findPiece) where
 
 import           Data.Char (toLower, ord)
 import           Foundation (ifThenElse)  
@@ -6,6 +8,7 @@ import           Helm.Graphics2D
 import           Helm.Asset
 import           Helm.Engine (Engine)
 import           Linear.V2 (V2(V2))
+import           Control.Applicative (pure)
 import           Data.Array
 import qualified Data.Map as M
 import           Data.List (find)
@@ -23,14 +26,17 @@ data Piece = Piece {
   
 mkPiece pieceType player = Piece pieceType player False False
 
-data BoundingBox = BBox {
-    topLeft :: V2 Double
-  , bottomRight :: V2 Double
+-- for this game a bounding box is always square
+data BoundingSquare = BSquare {
+    side :: Double
+  , topLeft :: V2 Double
   }
   
-pointIntersects :: V2 Double -> BoundingBox -> Bool
-pointIntersects (V2 x y) (BBox (V2 topLeftX topLeftY) (V2 btmRightX btmRightY)) =
-  x >= topLeftX && x <= btmRightX && y >= topLeftY && y <= btmRightY
+pointIntersects :: V2 Double -> BoundingSquare -> Bool
+pointIntersects point BSquare {side, topLeft} = let
+    bottomRight = topLeft + pure side
+  in
+    point > topLeft && point < bottomRight
 
 data PieceType = Pawn | Bishop | Knight | Rook | Queen | King
   deriving (Eq, Show)
@@ -38,9 +44,9 @@ data PieceType = Pawn | Bishop | Knight | Rook | Queen | King
 type File = Char
 type Rank = Int
 
-type BoardSquare = (File, Rank)
+type BoardPosition = (File, Rank)
 
-type Board = Array BoardSquare (Maybe Piece)
+type Board = Array BoardPosition (Maybe Piece)
 
 data BoardColor = Brown | Gray
   deriving (Eq, Show)
@@ -94,11 +100,12 @@ boardForm lightSquare darkSquare boardSize = let
                       , let hOffset = x * ssize
                       , let vOffset = y * ssize]
                       
-piecesForm :: Engine e => Int -> Board -> M.Map String (Image e) -> V2 Int -> Form e
-piecesForm boardSize board assets mousePos = let
+piecesForm :: Engine e => BoundingSquare -> Board -> M.Map String (Image e) -> V2 Int -> Form e
+piecesForm bbox board assets mousePos = let
     showPlayer player = toLower (head $ show player)
     showPieceType pieceType = fmap toLower $ show pieceType
     chooseImage piece = assets M.! ((showPlayer $ player piece) : "_" ++ (showPieceType $ pieceType piece))
+    boardSize = round $ side bbox
     ssize = squareSize boardSize
     imageDims = V2 ssize ssize
     mkForm piece = image imageDims $ chooseImage piece
@@ -113,18 +120,18 @@ piecesForm boardSize board assets mousePos = let
                         rank <- [1..8],
                         let maybePiece = board ! (file, rank)]
                           
-findPiece :: Board -> Int -> V2 Int -> Maybe (BoardSquare, Piece)
-findPiece board boardSize point = let
+findPiece :: BoundingSquare -> Board -> V2 Int -> Maybe (BoardPosition, Piece)
+findPiece boardBBox board point = let
     testPoint = fromIntegral <$> point
-    ssize = squareSize boardSize
-    pieceInSquare :: (BoardSquare, Maybe Piece) -> Bool
+    boardSide = round $ side boardBBox
+    ssize = squareSize boardSide
+    pieceInSquare :: (BoardPosition, Maybe Piece) -> Bool
     pieceInSquare (_, Nothing) = False
     pieceInSquare ((file, rank), _) = let
-        topLeft = V2 (hOffset ssize file) (vOffset ssize rank)
-        bottomRight = fmap (+ ssize) topLeft
-        bbox = BBox topLeft bottomRight
+        orgn = V2 (hOffset ssize file) (vOffset ssize rank) + topLeft boardBBox
+        squarebbox = BSquare {side = ssize,  topLeft = orgn}
       in
-        pointIntersects testPoint bbox
+        pointIntersects testPoint squarebbox
     assoc = find pieceInSquare (assocs board)
   in
     case assoc of
@@ -132,7 +139,7 @@ findPiece board boardSize point = let
       _ -> Nothing
 
 squareSize :: Int -> Double
-squareSize boardSize = fromIntegral boardSize / 8
+squareSize boardSide = fromIntegral boardSide / 8
 
 hOffset :: Double -> File -> Double
 hOffset squareSize file = fromIntegral (ord file - ord 'a') * squareSize
