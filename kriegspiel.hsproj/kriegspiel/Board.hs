@@ -1,4 +1,4 @@
-module Board (boardForm, piecesForm, findPiece) where
+module Board (Board, BoardColor(Brown, Gray), initialPosition, boardForm, piecesForm, findPiece) where
 
 import           Data.Char (toLower, ord)
 import           Foundation (ifThenElse)  
@@ -9,6 +9,7 @@ import           Linear.V2 (V2(V2))
 import           Data.Array
 import qualified Data.Map as M
 import           Data.List (find)
+import           Control.Monad (join)
 
 data Player = White | Black
   deriving (Eq, Show)
@@ -79,16 +80,16 @@ initialPosition = array (('a', 1),('h', 8)) $ [
 
 boardForm :: Engine e => Image e -> Image e -> Int -> Form e
 boardForm lightSquare darkSquare boardSize = let
-    squareSize = fromIntegral boardSize / 8
-    imageDims = V2 squareSize squareSize
+    ssize = squareSize boardSize
+    imageDims = V2 ssize ssize
     chooseImage x y = ifThenElse (floor (x + y) `mod` 2 == 0) lightSquare darkSquare
     mkForm x y = image imageDims $ chooseImage x y
   in
     toForm $ collage [move (V2 hOffset vOffset) $ mkForm x y |
                         x <- [0..7]
                       , y <- [0..7]
-                      , let hOffset = x * squareSize
-                      , let vOffset = y * squareSize]
+                      , let hOffset = x * ssize
+                      , let vOffset = y * ssize]
                       
 piecesForm :: Engine e => Int -> Board -> M.Map String (Image e) -> Form e
 piecesForm boardSize board assets = let
@@ -110,15 +111,16 @@ findPiece :: Board -> Int -> V2 Int -> Maybe Piece
 findPiece board boardSize point = let
     testPoint = fromIntegral <$> point
     ssize = squareSize boardSize
-    intersects ((file, rank), maybePiece) = let
+    pieceInSquare :: (BoardSquare, Maybe Piece) -> Bool
+    pieceInSquare ((file, rank), maybePiece) = let
         topLeft = V2 (hOffset ssize file) (vOffset ssize rank)
-        bottomRight = topLeft + ssize
+        bottomRight = fmap (+ ssize) topLeft
         bbox = BBox topLeft bottomRight
       in
         pointIntersects testPoint bbox
-    assoc = find (intersects (assocs board)
+    assoc = find pieceInSquare (assocs board)
   in
-    fmap snd assoc
+    join $ fmap snd assoc
 
 squareSize :: Int -> Double
 squareSize boardSize = fromIntegral boardSize / 8
