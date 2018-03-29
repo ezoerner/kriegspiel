@@ -1,4 +1,4 @@
-module Board (boardForm, piecesForm, findPiece) where
+module Board where
 
 import           Data.Char (toLower, ord)
 import           Foundation (ifThenElse)  
@@ -8,7 +8,6 @@ import           Helm.Engine (Engine)
 import           Linear.V2 (V2(V2))
 import           Data.Array
 import qualified Data.Map as M
-import           Data.List (find)
 
 data Player = White | Black
   deriving (Eq, Show)
@@ -19,24 +18,10 @@ data Piece = Piece {
   , hasMoved :: Bool
   }
 
-data BoundingBox = BBox {
-    topLeft :: V2 Double
-  , bottomRight :: V2 Double
-  }
-  
-pointIntersects :: V2 Double -> BoundingBox -> Bool
-pointIntersects (V2 x y) (BBox (V2 topLeftX topLeftY) (V2 btmRightX btmRightY)) =
-  x >= topLeftX && x <= btmRightX && y >= topLeftY && y <= btmRightY
-
 data PieceType = Pawn | Bishop | Knight | Rook | Queen | King
   deriving (Eq, Show)
 
-type File = Char
-type Rank = Int
-
-type BoardSquare = (File, Rank)
-
-type Board = Array BoardSquare (Maybe Piece)
+type Board = Array (Char, Int) (Maybe Piece)
 
 data BoardColor = Brown | Gray
   deriving (Eq, Show)
@@ -94,39 +79,21 @@ piecesForm :: Engine e => Int -> Board -> M.Map String (Image e) -> Form e
 piecesForm boardSize board assets = let
     showPlayer player = toLower (head $ show player)
     showPieceType pieceType = fmap toLower $ show pieceType
+    squareSize = fromIntegral boardSize / 8
     chooseImage piece = assets M.! ((showPlayer $ player piece) : "_" ++ (showPieceType $ pieceType piece))
-    ssize = squareSize boardSize
-    imageDims = V2 ssize ssize
+    hOffset file = fromIntegral (ord file - ord 'a') * squareSize
+    vOffset rank = (fromIntegral $ 8 - rank) * squareSize
+    imageDims = V2 squareSize squareSize
     mkForm piece = image imageDims $ chooseImage piece
     pieceImage Nothing _ _ = blank
-    pieceImage (Just piece) file rank = move (V2 (hOffset ssize file) $ vOffset ssize rank) $ mkForm piece
+    pieceImage (Just piece) file rank = move (V2 (hOffset file) $ vOffset rank) $ mkForm piece
   in
     toForm $ collage [pieceImage maybePiece file rank |
                         file <- ['a'..'h'],
                         rank <- [1..8],
                         let maybePiece = board ! (file, rank)]
                         
-findPiece :: Board -> Int -> V2 Int -> Maybe Piece
-findPiece board boardSize point = let
-    testPoint = fromIntegral <$> point
-    ssize = squareSize boardSize
-    intersects ((file, rank), maybePiece) = let
-        topLeft = V2 (hOffset ssize file) (vOffset ssize rank)
-        bottomRight = topLeft + ssize
-        bbox = BBox topLeft bottomRight
-      in
-        pointIntersects testPoint bbox
-    assoc = find (intersects (assocs board)
-  in
-    fmap snd assoc
-
-squareSize :: Int -> Double
-squareSize boardSize = fromIntegral boardSize / 8
-
-hOffset :: Double -> File -> Double
-hOffset squareSize file = fromIntegral (ord file - ord 'a') * squareSize
-
-vOffset :: Double -> Rank -> Double
-vOffset squareSize rank = (fromIntegral $ 8 - rank) * squareSize
-
+findPiece :: (V2 Int) -> Maybe Piece
+findPiece = undefined
+  
 
