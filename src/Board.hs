@@ -23,6 +23,7 @@ data Piece = Piece {
   , inDrag :: Bool
   } deriving (Show)
   
+mkPiece :: PieceType -> Player -> Piece
 mkPiece pieceType player = Piece pieceType player False False
 
 -- for this game a bounding box is always square
@@ -93,7 +94,7 @@ boardForm :: Engine e => Image e -> Image e -> Int -> Form e
 boardForm lightSquare darkSquare boardSize = let
     ssize = squareSize boardSize
     imageDims = V2 ssize ssize
-    chooseImage x y = ifThenElse (floor (x + y) `mod` 2 == 0) lightSquare darkSquare
+    chooseImage x y = ifThenElse (floor (x + y) `mod` (2 :: Integer) == 0) lightSquare darkSquare
     mkForm x y = image imageDims $ chooseImage x y
   in
     toForm $ collage [move (V2 hOff vOff) $ mkForm x y |
@@ -145,9 +146,9 @@ squareSize :: Int -> Double
 squareSize boardSide = fromIntegral boardSide / 8
 
 hOffset :: Double -> File -> Double
-hOffset squareSize file = fromIntegral (ord file - ord 'a') * squareSize
+hOffset ssize file = fromIntegral (ord file - ord 'a') * ssize
 
 vOffset :: Double -> Rank -> Double
-vOffset squareSize rank = (fromIntegral $ 8 - rank) * squareSize
+vOffset ssize rank = (fromIntegral $ 8 - rank) * ssize
 
 
