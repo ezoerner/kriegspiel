@@ -12,7 +12,6 @@ import           Control.Applicative (pure)
 import           Data.Array
 import qualified Data.Map as M
 import           Data.List (find)
-import           Control.Monad (join)
 
 data Player = White | Black
   deriving (Eq, Show)
@@ -22,7 +21,7 @@ data Piece = Piece {
   , player :: Player
   , hasMoved :: Bool
   , inDrag :: Bool
-  }
+  } deriving (Show)
   
 mkPiece pieceType player = Piece pieceType player False False
 
@@ -30,7 +29,7 @@ mkPiece pieceType player = Piece pieceType player False False
 data BoundingSquare = BSquare {
     side :: Double
   , topLeft :: V2 Double
-  }
+  } deriving (Show)
   
 pointIntersects :: V2 Double -> BoundingSquare -> Bool
 pointIntersects point (BSquare {side, topLeft}) = let
@@ -39,7 +38,7 @@ pointIntersects point (BSquare {side, topLeft}) = let
     --point > topLeft && point < bottomRight
     case (point, topLeft, bottomRight) of
       (V2 px py, V2 orgnX orgnY, V2 cornerX cornerY) ->
-        px >= orgnX && px <= cornerY && py >= orgnY && py <= cornerY
+        px >= orgnX && px <= cornerX && py >= orgnY && py <= cornerY
 
 data PieceType = Pawn | Bishop | Knight | Rook | Queen | King
   deriving (Eq, Show)
@@ -97,11 +96,11 @@ boardForm lightSquare darkSquare boardSize = let
     chooseImage x y = ifThenElse (floor (x + y) `mod` 2 == 0) lightSquare darkSquare
     mkForm x y = image imageDims $ chooseImage x y
   in
-    toForm $ collage [move (V2 hOffset vOffset) $ mkForm x y |
+    toForm $ collage [move (V2 hOff vOff) $ mkForm x y |
                         x <- [0..7]
                       , y <- [0..7]
-                      , let hOffset = x * ssize
-                      , let vOffset = y * ssize]
+                      , let hOff = x * ssize
+                      , let vOff = y * ssize]
                       
 piecesForm :: Engine e => BoundingSquare -> Board -> M.Map String (Image e) -> V2 Int -> Form e
 piecesForm bbox board assets mousePos = let

@@ -9,19 +9,17 @@ import           Helm.Color
 import           Helm.Engine.SDL (SDLEngine)
 import qualified Helm.Engine.SDL as SDL
 import           Helm.Graphics2D
-import qualified Helm.Graphics2D.Text as Text
 import qualified Helm.Keyboard as Keyboard
 import qualified Helm.Mouse as Mouse
 import qualified Helm.Sub as Sub
-import qualified Helm.Time as Time
-import           Helm.Time (Time, second)
 import qualified Helm.Window as Window
 
 import qualified Data.Map as M
 import           Data.Array
 import           System.FilePath ((</>))
-import           System.Directory
 import           Board
+
+import qualified Paths_kriegspiel as Paths
 
 data Action = DoNothing |
   ResizeWindow (V2 Int) |
@@ -35,7 +33,7 @@ data Model = Model {
   , boardColor :: BoardColor
   , board :: Board
   , mousePos :: V2 Int
-}
+} deriving (Show)
 
 border :: Num a => V2 a
 border = V2 100 100 
@@ -54,7 +52,7 @@ calcBoardSize windowDims = constrainSquare $ windowDims - 2 * border
 
 calcBoardBBox :: (Integral a, Ord a) => V2 a -> BoundingSquare
 calcBoardBBox windowDims = BSquare { side = fromIntegral $ calcBoardSize windowDims,
-                                     topLeft = fromIntegral <$> border}
+                                     topLeft = border}
 
 initialWindowDims :: Num a => V2 a
 initialWindowDims = V2 640 640
@@ -72,7 +70,7 @@ update model@Model {board = board, windowDims} (StartDrag loc) =  let
     case maybeBoardSquareAndPiece of
       Nothing -> (model, Cmd.none)
       Just (boardSquare, piece) -> (model {board = board // [(boardSquare, Just (piece {inDrag = True}))]}, Cmd.none)
-update model (Drop loc) = (model, Cmd.none)
+update model (Drop _) = (model, Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
 
@@ -93,7 +91,7 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets engine Model {
+view assets _ Model {
     windowDims
   , boardColor
   , board
@@ -117,7 +115,7 @@ main = do
     , SDL.windowTitle = "Kriegspiel"
     }
     
-  imageDir <- (</> "images") <$> getCurrentDirectory
+  imageDir <- (</> "images") <$> Paths.getDataDir
   let assetList = [  ("b_bishop_png_withShadow.png", "b_bishop")
                    , ("b_king_png_withShadow.png", "b_king")
                    , ("b_knight_png_withShadow.png", "b_knight")
@@ -130,15 +128,15 @@ main = do
                    , ("w_pawn_png_withShadow.png", "w_pawn")
                    , ("w_queen_png_withShadow.png", "w_queen")
                    , ("w_rook_png_withShadow.png", "w_rook")
-                   , ("square gray light _png.png", "square_gray_light")
-                   , ("square gray dark _png.png", "square_gray_dark")
-                   , ("square brown light_png.png", "square_brown_light")
-                   , ("square brown dark_png.png", "square_brown_dark")
+                   , ("square_gray_light.png", "square_gray_light")
+                   , ("square_gray_dark.png", "square_gray_dark")
+                   , ("square_brown_light.png", "square_brown_light")
+                   , ("square_brown_dark.png", "square_brown_dark")
                   ]
       loadAssets' [] game loaded = game loaded
-      loadAssets' ((file, id):files) game loaded = do
-        SDL.withImage engine (imageDir </> file) $ \image ->
-          loadAssets' files game (M.insert id image loaded)
+      loadAssets' ((file, key):files) game loaded = do
+        SDL.withImage engine (imageDir </> file) $ \img ->
+          loadAssets' files game (M.insert key img loaded)
       loadAssets files game = loadAssets' files game M.empty
 
   loadAssets assetList $ \allAssets ->

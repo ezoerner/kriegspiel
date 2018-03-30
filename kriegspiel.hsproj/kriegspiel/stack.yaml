@@ -2,5 +2,9 @@
 flags: {}
 packages:
 - '.'
-extra-deps: [helm-1.0.0]
+- location:
+    git: https://github.com/z0w0/helm.git
+    commit: e2d8745d573c8b775aa390b70c597722ec102e48
+  extra-dep: true
+extra-deps: []
 resolver: lts-9.6
