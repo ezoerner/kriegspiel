@@ -3,23 +3,24 @@
 import Data.Char (toLower)
 import Linear.V2 (V2(V2))
 
-import Helm
-import Helm.Color
-import Helm.Engine.SDL (SDLEngine)
-import Helm.Graphics2D
--- import Foundation (ifThenElse)
-
+import           Helm
 import qualified Helm.Cmd as Cmd
-import qualified Helm.Mouse as Mouse
+import           Helm.Color
+import           Helm.Engine.SDL (SDLEngine)
 import qualified Helm.Engine.SDL as SDL
+import           Helm.Graphics2D
+import qualified Helm.Graphics2D.Text as Text
+import qualified Helm.Keyboard as Keyboard
+import qualified Helm.Mouse as Mouse
 import qualified Helm.Sub as Sub
+import qualified Helm.Time as Time
+import           Helm.Time (Time, second)
+import qualified Helm.Window as Window
 
 import qualified Data.Map as M
 import           Data.Array
 import           System.FilePath ((</>))
 import           System.Directory
-import qualified Helm.Keyboard as Keyboard
-import qualified Helm.Window as Window
 import           Board
 
 data Action = DoNothing |

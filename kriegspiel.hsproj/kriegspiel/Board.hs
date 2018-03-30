@@ -33,10 +33,13 @@ data BoundingSquare = BSquare {
   }
   
 pointIntersects :: V2 Double -> BoundingSquare -> Bool
-pointIntersects point BSquare {side, topLeft} = let
+pointIntersects point (BSquare {side, topLeft}) = let
     bottomRight = topLeft + pure side
   in
-    point > topLeft && point < bottomRight
+    --point > topLeft && point < bottomRight
+    case (point, topLeft, bottomRight) of
+      (V2 px py, V2 orgnX orgnY, V2 cornerX cornerY) ->
+        px >= orgnX && px <= cornerY && py >= orgnY && py <= cornerY
 
 data PieceType = Pawn | Bishop | Knight | Rook | Queen | King
   deriving (Eq, Show)
@@ -123,13 +126,13 @@ piecesForm bbox board assets mousePos = let
                           
 findPiece :: BoundingSquare -> Board -> V2 Int -> Maybe (BoardPosition, Piece)
 findPiece boardBBox board point = let
-    testPoint = fromIntegral <$> point
+    testPoint = (fromIntegral <$> point) - topLeft boardBBox
     boardSide = round $ side boardBBox
     ssize = squareSize boardSide
     pieceInSquare :: (BoardPosition, Maybe Piece) -> Bool
     pieceInSquare (_, Nothing) = False
     pieceInSquare ((file, rank), _) = let
-        orgn = V2 (hOffset ssize file) (vOffset ssize rank) + topLeft boardBBox
+        orgn = V2 (hOffset ssize file) (vOffset ssize rank)
         squarebbox = BSquare {side = ssize,  topLeft = orgn}
       in
         pointIntersects testPoint squarebbox
