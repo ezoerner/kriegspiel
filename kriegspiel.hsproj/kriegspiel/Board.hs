@@ -112,7 +112,7 @@ piecesForm bbox board assets mousePos = let
     pieceImage Nothing _ _ = blank
     pieceImage (Just piece@Piece {inDrag = True}) _ _ =
       -- subtract topLeft bbox to convert from global to local coordinates
-      toForm $ center ((fromIntegral <$> mousePos) - topLeft bbox - imageDims / 2) $ collage [mkForm piece]
+      move ((fromIntegral <$> mousePos) - topLeft bbox - imageDims / 2) $ mkForm piece
     pieceImage (Just piece) file rank =
       move (V2 (hOffset ssize file) $ vOffset ssize rank) $ mkForm piece
   in
