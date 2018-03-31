@@ -7,4 +7,4 @@ packages:
     commit: e2d8745d573c8b775aa390b70c597722ec102e48
   extra-dep: true
 extra-deps: []
-resolver: lts-9.6
+resolver: lts-11.2
