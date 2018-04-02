@@ -14,12 +14,10 @@ import qualified Helm.Mouse as Mouse
 import qualified Helm.Sub as Sub
 import qualified Helm.Window as Window
 
-import qualified Data.Map as M
-import           Data.Array
+import qualified Data.Map.Strict as M
 import           System.FilePath ((</>))
+import           System.Directory
 import           Board
-
-import qualified Paths_kriegspiel as Paths
 
 data Action = DoNothing |
   ResizeWindow (V2 Int) |
@@ -65,11 +63,11 @@ update model (ResizeWindow windowDims) = (model {windowDims}, Cmd.none)
 update model@Model {boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
 update model@Model {boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
 update model@Model {board = board, windowDims} (StartDrag loc) =  let
-    maybeBoardSquareAndPiece = findPiece (calcBoardBBox windowDims) board loc
+    maybeBoardPos = findPiece (calcBoardBBox windowDims) board loc
   in
-    case maybeBoardSquareAndPiece of
+    case maybeBoardPos of
       Nothing -> (model, Cmd.none)
-      Just (boardSquare, piece) -> (model {board = board // [(boardSquare, Just (piece {inDrag = True}))]}, Cmd.none)
+      Just boardPos -> (model {board = M.adjust (\p -> p {inDrag = True}) boardPos board}, Cmd.none)
 update model (Drop _) = (model, Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
@@ -115,7 +113,7 @@ main = do
     , SDL.windowTitle = "Kriegspiel"
     }
     
-  imageDir <- (</> "images") <$> Paths.getDataDir
+  imageDir <- (</> "images") <$> getCurrentDirectory
   let assetList = [  ("b_bishop_png_withShadow.png", "b_bishop")
                    , ("b_king_png_withShadow.png", "b_king")
                    , ("b_knight_png_withShadow.png", "b_knight")
@@ -147,4 +145,3 @@ main = do
       , viewFn          = view allAssets engine
       }
       
-
