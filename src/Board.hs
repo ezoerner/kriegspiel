@@ -10,7 +10,7 @@ import           Helm.Engine (Engine)
 import           Linear.V2 (V2(V2))
 import           Control.Applicative (pure)
 import qualified Data.Map.Strict as M
-import           Data.List (find)
+import           Data.List (find, map, sortOn)
 
 data Player = White | Black
   deriving (Eq, Show)
@@ -20,7 +20,7 @@ data Piece = Piece {
   , player :: Player
   , hasMoved :: Bool
   , inDrag :: Bool
-  } deriving (Show)
+  } deriving (Show, Eq)
   
 mkPiece :: PieceType -> Player -> Piece
 mkPiece pieceType player = Piece pieceType player False False
@@ -111,17 +111,20 @@ piecesForm bbox board assets mousePos = let
     ssize = squareSize boardSize
     imageDims = V2 ssize ssize
     mkForm piece = image imageDims $ chooseImage piece
-    pieceImage Nothing _ _ = blank
-    pieceImage (Just piece@Piece {inDrag = True}) _ _ =
+    pieceImage _ (Just piece@Piece {inDrag = True}) =
       -- subtract topLeft bbox to convert from global to local coordinates
       move ((fromIntegral <$> mousePos) - topLeft bbox - imageDims / 2) $ mkForm piece
-    pieceImage (Just piece) file rank =
+    pieceImage (file, rank) (Just piece)  =
       move (V2 (hOffset ssize file) $ vOffset ssize rank) $ mkForm piece
+    pieces = [((file, rank), maybePiece) |
+      file <- ['a'..'h'],
+      rank <- [1..8],
+      let maybePiece = board M.!? (file, rank),
+      maybePiece /= Nothing]
+    sortedPieces = sortOn (fmap inDrag . snd) pieces
+    imageCollage = collage $ map (\(boardPos, maybePiece) -> pieceImage boardPos maybePiece) $ sortedPieces
   in
-    toForm $ collage [pieceImage maybePiece file rank |
-                        file <- ['a'..'h'],
-                        rank <- [1..8],
-                        let maybePiece = board M.!? (file, rank)]
+    toForm $ imageCollage
                           
 findPiece :: BoundingSquare -> Board -> V2 Int -> Maybe BoardPosition
 findPiece boardBBox board point = let
