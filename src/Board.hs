@@ -1,8 +1,20 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Board (Piece(..), BoundingSquare(..), Board, BoardColor(Brown, Gray), initialPosition, boardForm, piecesForm, findPiece) where
+module Board (
+    Piece(..)
+  , BoundingSquare(..)
+  , BoardPosition
+  , Board
+  , BoardColor(Brown, Gray)
+  , initialPosition
+  , boardForm
+  , piecesForm
+  , findPositionWithPiece
+  , toBoardLocal
+  , toBoardPosition
+) where
 
-import           Data.Char (toLower, ord)
+import           Data.Char (toLower, ord, chr)
 import           Foundation (ifThenElse)  
 import           Helm.Graphics2D
 import           Helm.Asset
@@ -10,7 +22,7 @@ import           Helm.Engine (Engine)
 import           Linear.V2 (V2(V2))
 import           Control.Applicative (pure)
 import qualified Data.Map.Strict as M
-import           Data.List (find, map, sortOn)
+import           Data.List (map, sortOn)
 
 data Player = White | Black
   deriving (Eq, Show)
@@ -27,19 +39,10 @@ mkPiece pieceType player = Piece pieceType player False False
 
 -- for this game a bounding box is always square
 data BoundingSquare = BSquare {
-    side :: Double
+    width :: Double
   , topLeft :: V2 Double
   } deriving (Show)
   
-pointIntersects :: V2 Double -> BoundingSquare -> Bool
-pointIntersects point (BSquare {side, topLeft}) = let
-    bottomRight = topLeft + pure side
-  in
-    --point > topLeft && point < bottomRight
-    case (point, topLeft, bottomRight) of
-      (V2 px py, V2 orgnX orgnY, V2 cornerX cornerY) ->
-        px >= orgnX && px <= cornerX && py >= orgnY && py <= cornerY
-
 data PieceType = Pawn | Bishop | Knight | Rook | Queen | King
   deriving (Eq, Show)
 
@@ -89,9 +92,9 @@ initialPosition = M.fromList [
   , (('h', 7), mkPiece Pawn Black)
   ]
 
-boardForm :: Engine e => Image e -> Image e -> Int -> Form e
-boardForm lightSquare darkSquare boardSize = let
-    ssize = squareSize boardSize
+boardForm :: Engine e => Image e -> Image e -> BoundingSquare -> Form e
+boardForm lightSquare darkSquare boardBBox = let
+    ssize = squareSize boardBBox
     imageDims = V2 ssize ssize
     chooseImage x y = ifThenElse (floor (x + y) `mod` (2 :: Integer) == 0) lightSquare darkSquare
     mkForm x y = image imageDims $ chooseImage x y
@@ -107,15 +110,16 @@ piecesForm bbox board assets mousePos = let
     showPlayer player = toLower (head $ show player)
     showPieceType pieceType = fmap toLower $ show pieceType
     chooseImage piece = assets M.! ((showPlayer $ player piece) : "_" ++ (showPieceType $ pieceType piece))
-    boardSize = round $ side bbox
-    ssize = squareSize boardSize
-    imageDims = V2 ssize ssize
+    ssize = squareSize bbox
+    imageDims = pure ssize
     mkForm piece = image imageDims $ chooseImage piece
+
     pieceImage _ (Just piece@Piece {inDrag = True}) =
       -- subtract topLeft bbox to convert from global to local coordinates
       move ((fromIntegral <$> mousePos) - topLeft bbox - imageDims / 2) $ mkForm piece
-    pieceImage (file, rank) (Just piece)  =
-      move (V2 (hOffset ssize file) $ vOffset ssize rank) $ mkForm piece
+    pieceImage boardPosition (Just piece)  =
+      move (toUnitOffset boardPosition * pure ssize) $ mkForm piece
+
     pieces = [((file, rank), maybePiece) |
       file <- ['a'..'h'],
       rank <- [1..8],
@@ -126,25 +130,23 @@ piecesForm bbox board assets mousePos = let
   in
     toForm $ imageCollage
                           
-findPiece :: BoundingSquare -> Board -> V2 Int -> Maybe BoardPosition
-findPiece boardBBox board point = let
-    testPoint = (fromIntegral <$> point) - topLeft boardBBox
-    boardSide = round $ side boardBBox
-    ssize = squareSize boardSide
-    pieceInSquare :: BoardPosition -> Bool
-    pieceInSquare (file, rank) = let
-        orgn = V2 (hOffset ssize file) (vOffset ssize rank)
-        squarebbox = BSquare {side = ssize,  topLeft = orgn}
-      in
-        pointIntersects testPoint squarebbox
+findPositionWithPiece :: BoundingSquare -> Board -> V2 Double -> Maybe BoardPosition
+findPositionWithPiece boardBBox board point = let
+    testBoardPos = toBoardPosition boardBBox point
   in
-    find pieceInSquare $ M.keys board
+    fmap (const testBoardPos) $ board M.!? testBoardPos
 
-squareSize :: Int -> Double
-squareSize boardSide = fromIntegral boardSide / 8
+toUnitOffset :: BoardPosition -> V2 Double
+toUnitOffset (file, rank) = fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)
 
-hOffset :: Double -> File -> Double
-hOffset ssize file = fromIntegral (ord file - ord 'a') * ssize
+toBoardPosition :: BoundingSquare -> V2 Double -> BoardPosition
+toBoardPosition bbox (V2 x y) = let
+    ssize = squareSize bbox
+  in
+    (chr $ ord 'a' + (floor $ x / ssize), 8 - (floor $ y / ssize))
 
-vOffset :: Double -> Rank -> Double
-vOffset ssize rank = (fromIntegral $ 8 - rank) * ssize
+squareSize :: BoundingSquare -> Double
+squareSize bbox = width bbox / 8
+
+toBoardLocal :: V2 Double -> BoundingSquare -> V2 Double
+toBoardLocal globalV2 bbox = globalV2 - topLeft bbox

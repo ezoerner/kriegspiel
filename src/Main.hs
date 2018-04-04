@@ -27,10 +27,12 @@ data Action = DoNothing |
   Drop (V2 Int)
 
 data Model = Model {
-    windowDims :: (V2 Int)
+    windowDims :: V2 Int
+  , boardBBox :: BoundingSquare
   , boardColor :: BoardColor
   , board :: Board
   , mousePos :: V2 Int
+  , boardPositionInDrag :: Maybe BoardPosition
 } deriving (Show)
 
 border :: Num a => V2 a
@@ -46,31 +48,44 @@ constrainSquare :: Ord a => V2 a -> a
 constrainSquare (V2 x y) = x `min` y
 
 calcBoardSize :: (Num a, Ord a) => V2 a -> a
-calcBoardSize windowDims = constrainSquare $ windowDims - 2 * border
+calcBoardSize windowSize = constrainSquare $ windowSize - 2 * border
 
 calcBoardBBox :: (Integral a, Ord a) => V2 a -> BoundingSquare
-calcBoardBBox windowDims = BSquare { side = fromIntegral $ calcBoardSize windowDims,
+calcBoardBBox windowSize = BSquare { width = fromIntegral $ calcBoardSize windowSize,
                                      topLeft = border}
 
-initialWindowDims :: Num a => V2 a
+initialWindowDims :: V2 Int
 initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model initialWindowDims Brown initialPosition (V2 0 0), Cmd.none)
+initial = (Model initialWindowDims (calcBoardBBox initialWindowDims) Brown initialPosition (V2 0 0) Nothing, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update model (ResizeWindow windowDims) = (model {windowDims}, Cmd.none)
-update model@Model {boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
-update model@Model {boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
-update model@Model {board = board, windowDims} (StartDrag loc) =  let
-    maybeBoardPos = findPiece (calcBoardBBox windowDims) board loc
+update model (ResizeWindow windowSize) = (model {windowDims = windowSize, boardBBox = calcBoardBBox windowSize}, Cmd.none)
+update model@Model{boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
+update model@Model{boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
+update model@Model{boardBBox, board} (StartDrag globalPoint) =  let
+    localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
+    maybeBoardPos = findPositionWithPiece boardBBox board localPoint
   in
     case maybeBoardPos of
       Nothing -> (model, Cmd.none)
-      Just boardPos -> (model {board = M.adjust (\p -> p {inDrag = True}) boardPos board}, Cmd.none)
-update model (Drop _) = (model, Cmd.none)
+      Just boardPos -> (model {board = M.adjust (\p -> p {inDrag = True}) boardPos board, boardPositionInDrag = Just boardPos}, Cmd.none)
+update model@Model{boardBBox, board, boardPositionInDrag = Just dragPos} (Drop globalPoint) = let
+    localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
+    targetPos = toBoardPosition boardBBox localPoint  
+  in
+    (model {board = dropFromTo board dragPos targetPos, boardPositionInDrag = Nothing}, Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
+
+
+dropFromTo :: Board -> BoardPosition -> BoardPosition -> Board
+dropFromTo board fromPos toPos = let
+    piece = board M.! fromPos
+    board' = M.insert toPos piece { inDrag = False } board
+  in
+    M.delete fromPos board'
 
 subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
@@ -91,18 +106,18 @@ subscriptions = Sub.batch
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
 view assets _ Model {
     windowDims
+  , boardBBox
   , boardColor
   , board
   , mousePos} = let
     showBoardColor = fmap toLower (show boardColor)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
     darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
-    boardSize = calcBoardSize windowDims
   in
     Graphics2D $ collage [
       background (fromIntegral <$> windowDims)
-      , move border $ boardForm lightSquare darkSquare boardSize
-      , move border $ piecesForm (calcBoardBBox windowDims) board assets mousePos]
+      , move border $ boardForm lightSquare darkSquare boardBBox
+      , move border $ piecesForm boardBBox board assets mousePos]
 
 main :: IO ()
 main = do
