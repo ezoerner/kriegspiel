@@ -10,6 +10,7 @@ dependencies:
 - helm
 - linear
 - filepath
+- utility-ht
 executables:
   kriegspiel:
     main: Main.hs

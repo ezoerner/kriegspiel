@@ -73,9 +73,9 @@ update model@Model{boardBBox, board} (StartDrag globalPoint) =  let
       Just boardPos -> (model {board = M.adjust (\p -> p {inDrag = True}) boardPos board, boardPositionInDrag = Just boardPos}, Cmd.none)
 update model@Model{boardBBox, board, boardPositionInDrag = Just dragPos} (Drop globalPoint) = let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
-    targetPos = toBoardPosition boardBBox localPoint  
+    maybeTargetPos = toBoardPosition boardBBox localPoint  
   in
-    (model {board = dropFromTo board dragPos targetPos, boardPositionInDrag = Nothing}, Cmd.none)
+    (model {board = dropFromTo board dragPos maybeTargetPos, boardPositionInDrag = Nothing}, Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
 

@@ -24,6 +24,8 @@ import           Linear.V2 (V2(V2))
 import           Control.Applicative (pure)
 import qualified Data.Map.Strict as M
 import           Data.List (map, sortOn)
+import           Data.Maybe (fromMaybe)
+import           Data.Maybe.HT
 
 data Player = White | Black
   deriving (Eq, Show)
@@ -93,6 +95,18 @@ initialPosition = M.fromList [
   , (('h', 7), mkPiece Pawn Black)
   ]
 
+minPosition :: BoardPosition
+minPosition = ('a', 1)
+
+maxPosition :: BoardPosition
+maxPosition = ('h', 8)
+
+isOnBoard :: BoardPosition -> Bool
+isOnBoard pos = fst pos >= fst minPosition &&
+                  snd pos >= snd minPosition &&
+                  fst pos <= fst maxPosition &&
+                  snd pos <= snd maxPosition
+
 boardForm :: Engine e => Image e -> Image e -> BoundingSquare -> Form e
 boardForm lightSquare darkSquare boardBBox = let
     ssize = squareSize boardBBox
@@ -133,26 +147,28 @@ piecesForm bbox board assets mousePos = let
                           
 findPositionWithPiece :: BoundingSquare -> Board -> V2 Double -> Maybe BoardPosition
 findPositionWithPiece boardBBox board point = let
-    testBoardPos = toBoardPosition boardBBox point
+    maybeBoardPos = toBoardPosition boardBBox point
   in
-    fmap (const testBoardPos) $ board M.!? testBoardPos
+    maybeBoardPos >>=
+      \testPos -> fmap (const testPos) $ board M.!? testPos
 
-dropFromTo :: Board -> BoardPosition -> BoardPosition -> Board
-dropFromTo board fromPos toPos = let
-    piece = board M.! fromPos
-    board' = M.insert toPos piece { inDrag = False } board
+dropFromTo :: Board -> BoardPosition -> Maybe BoardPosition -> Board
+dropFromTo board fromPos maybeToPos = let
+    piece = (board M.! fromPos) {inDrag = False}
+    destPos = fromMaybe fromPos maybeToPos
+    board' = M.insert destPos piece board
   in
-    ifThenElse (toPos == fromPos) board' $ M.delete fromPos board'
-
+    ifThenElse (fromPos /= destPos) (M.delete fromPos board') board'
 
 toUnitOffset :: BoardPosition -> V2 Double
 toUnitOffset (file, rank) = fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)
 
-toBoardPosition :: BoundingSquare -> V2 Double -> BoardPosition
+toBoardPosition :: BoundingSquare -> V2 Double -> Maybe BoardPosition
 toBoardPosition bbox (V2 x y) = let
     ssize = squareSize bbox
+    tryPos = (chr $ ord 'a' + (floor $ x / ssize), 8 - (floor $ y / ssize))
   in
-    (chr $ ord 'a' + (floor $ x / ssize), 8 - (floor $ y / ssize))
+    isOnBoard tryPos `toMaybe` tryPos
 
 squareSize :: BoundingSquare -> Double
 squareSize bbox = width bbox / 8
