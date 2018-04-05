@@ -79,14 +79,6 @@ update model@Model{boardBBox, board, boardPositionInDrag = Just dragPos} (Drop g
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
 
-
-dropFromTo :: Board -> BoardPosition -> BoardPosition -> Board
-dropFromTo board fromPos toPos = let
-    piece = board M.! fromPos
-    board' = M.insert toPos piece { inDrag = False } board
-  in
-    M.delete fromPos board'
-
 subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
   [Window.resizes ResizeWindow

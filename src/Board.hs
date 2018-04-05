@@ -12,6 +12,7 @@ module Board (
   , findPositionWithPiece
   , toBoardLocal
   , toBoardPosition
+  , dropFromTo
 ) where
 
 import           Data.Char (toLower, ord, chr)
@@ -135,6 +136,14 @@ findPositionWithPiece boardBBox board point = let
     testBoardPos = toBoardPosition boardBBox point
   in
     fmap (const testBoardPos) $ board M.!? testBoardPos
+
+dropFromTo :: Board -> BoardPosition -> BoardPosition -> Board
+dropFromTo board fromPos toPos = let
+    piece = board M.! fromPos
+    board' = M.insert toPos piece { inDrag = False } board
+  in
+    ifThenElse (toPos == fromPos) board' $ M.delete fromPos board'
+
 
 toUnitOffset :: BoardPosition -> V2 Double
 toUnitOffset (file, rank) = fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)
