@@ -5,6 +5,8 @@ module Model where
 import           Linear.V2 (V2)
 import           Board
 import qualified Data.Map.Strict as M
+import           Data.Maybe.HT
+import           PieceRules
 
 data Model = Model {
     windowDims :: V2 Int
@@ -42,9 +44,13 @@ startDragPiece model@Model{boardBBox, board} globalPoint =  let
           }
 
 dropPiece :: Model -> V2 Int -> Model
-dropPiece model@Model{boardBBox, board, posInDrag = Just dragPos} globalPoint = let
+dropPiece
+  model@Model{boardBBox, board, posInDrag = Just dragPos}
+  globalPoint = let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
-    maybeTargetPos = toBoardPosition boardBBox localPoint  
+    piece = board M.! dragPos
+    maybeTargetPos = toBoardPosition boardBBox localPoint >>= \toPos ->
+                        isLegalMove dragPos toPos piece `toMaybe` toPos
   in
     model {board = dropFromTo board dragPos maybeTargetPos, posInDrag = Nothing}
     
