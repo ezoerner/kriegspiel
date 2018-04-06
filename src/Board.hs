@@ -1,19 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Board (
-    Piece(..)
-  , BoundingSquare(..)
-  , BoardPosition
-  , Board
-  , BoardColor(Brown, Gray)
-  , initialPosition
-  , boardForm
-  , piecesForm
-  , findPositionWithPiece
-  , toBoardLocal
-  , toBoardPosition
-  , dropFromTo
-) where
+module Board where
 
 import           Data.Char (toLower, ord, chr)
 import           Foundation (ifThenElse)  
@@ -100,6 +87,16 @@ minPosition = ('a', 1)
 
 maxPosition :: BoardPosition
 maxPosition = ('h', 8)
+
+border :: Num a => V2 a
+border = V2 100 100 
+
+calcBoardBBox :: (Integral a, Ord a) => V2 a -> BoundingSquare
+calcBoardBBox windowSize = let
+    constrainSquare (V2 x y) = x `min` y
+    calcBoardSize = constrainSquare . subtract (2 * border)
+  in
+    BSquare { width = fromIntegral $ calcBoardSize windowSize, topLeft = border}
 
 isOnBoard :: BoardPosition -> Bool
 isOnBoard pos = fst pos >= fst minPosition &&

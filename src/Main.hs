@@ -18,25 +18,15 @@ import qualified Data.Map.Strict as M
 import           System.FilePath ((</>))
 import           System.Directory
 import           Board
+import           Model
 
-data Action = DoNothing |
+data Action =
+  DoNothing |
   ResizeWindow (V2 Int) |
   ToggleBoardColor |
   MoveMouse (V2 Int) |
   StartDrag (V2 Int) |
   Drop (V2 Int)
-
-data Model = Model {
-    windowDims :: V2 Int
-  , boardBBox :: BoundingSquare
-  , boardColor :: BoardColor
-  , board :: Board
-  , mousePos :: V2 Int
-  , boardPositionInDrag :: Maybe BoardPosition
-} deriving (Show)
-
-border :: Num a => V2 a
-border = V2 100 100 
 
 backgroundColor :: Color
 backgroundColor = rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
@@ -44,38 +34,18 @@ backgroundColor = rgb (fromRational 252/255) (fromRational 244/255) (fromRationa
 background :: (V2 Double) -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 
-constrainSquare :: Ord a => V2 a -> a
-constrainSquare (V2 x y) = x `min` y
-
-calcBoardSize :: (Num a, Ord a) => V2 a -> a
-calcBoardSize windowSize = constrainSquare $ windowSize - 2 * border
-
-calcBoardBBox :: (Integral a, Ord a) => V2 a -> BoundingSquare
-calcBoardBBox windowSize = BSquare { width = fromIntegral $ calcBoardSize windowSize,
-                                     topLeft = border}
-
 initialWindowDims :: V2 Int
 initialWindowDims = V2 640 640
 
 initial :: (Model, Cmd SDLEngine Action)
-initial = (Model initialWindowDims (calcBoardBBox initialWindowDims) Brown initialPosition (V2 0 0) Nothing, Cmd.none)
+initial = (initialModel initialWindowDims, Cmd.none)
 
-update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update model (ResizeWindow windowSize) = (model {windowDims = windowSize, boardBBox = calcBoardBBox windowSize}, Cmd.none)
+update :: Engine e => Model -> Action -> (Model, Cmd e Action)
+update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
 update model@Model{boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
 update model@Model{boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
-update model@Model{boardBBox, board} (StartDrag globalPoint) =  let
-    localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
-    maybeBoardPos = findPositionWithPiece boardBBox board localPoint
-  in
-    case maybeBoardPos of
-      Nothing -> (model, Cmd.none)
-      Just boardPos -> (model {board = M.adjust (\p -> p {inDrag = True}) boardPos board, boardPositionInDrag = Just boardPos}, Cmd.none)
-update model@Model{boardBBox, board, boardPositionInDrag = Just dragPos} (Drop globalPoint) = let
-    localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
-    maybeTargetPos = toBoardPosition boardBBox localPoint  
-  in
-    (model {board = dropFromTo board dragPos maybeTargetPos, boardPositionInDrag = Nothing}, Cmd.none)
+update model (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
+update model (Drop globalPoint) = (dropPiece model globalPoint, Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
 
