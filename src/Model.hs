@@ -53,7 +53,7 @@ dropPiece model@Model{boardBBox, board, posInDrag = Just dragPos}
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
     piece = board M.! dragPos
     maybeTargetPos = toBoardPosition boardBBox localPoint >>= \toPos ->
-      isLegalMove dragPos toPos piece `toMaybe` toPos
+      isLegalMove dragPos toPos board `toMaybe` toPos
   in
     model {board = dropFromTo board dragPos maybeTargetPos, posInDrag = Nothing}
 dropPiece model _ = model

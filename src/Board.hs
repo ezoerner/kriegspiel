@@ -45,6 +45,7 @@ type Rank = Int
 type BoardPosition = (File, Rank)
 
 type Board = M.Map BoardPosition Piece
+type Subboard = Board   -- filtered Board
 
 initialPosition :: Board
 initialPosition = M.fromList
@@ -133,8 +134,7 @@ piecesForm bbox board assets mousePos =
     mkForm piece = image imageDims $ chooseImage piece
 
     pieceImage _ (Just piece@Piece {inDrag = True}) =
-      -- subtract topLeft bbox to convert from global to local coordinates
-      move ((fromIntegral <$> mousePos) - topLeft bbox - imageDims / 2) $ mkForm piece
+        move (toBoardLocal (fromIntegral <$> mousePos) bbox - imageDims / 2) $ mkForm piece
     pieceImage boardPosition (Just piece)  =
       move (toUnitOffset boardPosition * pure ssize) $ mkForm piece
 
