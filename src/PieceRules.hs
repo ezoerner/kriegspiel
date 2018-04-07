@@ -20,13 +20,15 @@ pieceRule (Piece {pieceType = Pawn, player, hasMoved})
     fromPos@(fromFile, fromRank) toPos board =
   let
     dir = direction player
-    legalDests = filter (isVacant board) [(fromFile, fromRank + dir)]
-    legalDests' = if hasMoved
+    legalDests = [(fromFile, fromRank + dir)] -- one step forward
+    legalDests' = if hasMoved          -- add two steps forward if hasn't moved
                   then legalDests
                   else (fromFile, fromRank + 2 * dir):legalDests
-    legalDests'' = legalDests' ++ ([] `fromMaybe` (pawnTries board player M.!? fromPos))
+    legalDests'' = filter (isVacant board) legalDests'  -- but only if vacant
+    legalDests''' = legalDests'' ++                     -- add pawn captures
+        ([] `fromMaybe` (pawnTries board player M.!? fromPos))
   in
-    toPos `elem` legalDests''
+    toPos `elem` legalDests'''
 pieceRule _ _ _ _ = False
 
 isVacant :: Board -> BoardPosition -> Bool
