@@ -1,22 +1,22 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-import Data.Char (toLower)
-import Linear.V2 (V2(V2))
+import           Data.Char (toLower)
+import qualified Data.Map.Strict as M
+import           Linear.V2 (V2(V2))
+import           System.FilePath ((</>))
+import           System.Directory
 
 import           Helm
-import qualified Helm.Cmd as Cmd
 import           Helm.Color
-import           Helm.Engine.SDL (SDLEngine)
+import qualified Helm.Cmd as Cmd
 import qualified Helm.Engine.SDL as SDL
+import           Helm.Engine.SDL (SDLEngine)
 import           Helm.Graphics2D
 import qualified Helm.Keyboard as Keyboard
 import qualified Helm.Mouse as Mouse
 import qualified Helm.Sub as Sub
 import qualified Helm.Window as Window
 
-import qualified Data.Map.Strict as M
-import           System.FilePath ((</>))
-import           System.Directory
 import           Board
 import           Model
 

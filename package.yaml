@@ -3,7 +3,6 @@ version: '1.0'
 license: OtherLicense
 dependencies:
 - containers
-- foundation
 - directory
 - array
 - base

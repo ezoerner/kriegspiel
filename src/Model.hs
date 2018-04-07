@@ -2,10 +2,11 @@
 
 module Model where
 
-import           Linear.V2 (V2)
-import           Board
 import qualified Data.Map.Strict as M
-import           Data.Maybe.HT
+import           Data.Maybe.HT (toMaybe)
+import           Linear.V2 (V2)
+
+import           Board
 import           PieceRules
 
 data Model = Model

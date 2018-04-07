@@ -2,17 +2,17 @@
 
 module Board where
 
-import           Data.Char (toLower, ord, chr)
-import           Foundation (ifThenElse)  
-import           Helm.Graphics2D
-import           Helm.Asset
-import           Helm.Engine (Engine)
-import           Linear.V2 (V2(V2))
 import           Control.Applicative (pure)
+import           Data.Char (toLower, ord, chr)
 import qualified Data.Map.Strict as M
 import           Data.List (map, sortOn)
 import           Data.Maybe (fromMaybe, isJust)
-import           Data.Maybe.HT
+import           Data.Maybe.HT (toMaybe)
+import           Linear.V2 (V2(V2))
+
+import           Helm.Graphics2D
+import           Helm.Asset
+import           Helm.Engine (Engine)
 
 data Player = White | Black
     deriving (Eq, Show)
@@ -110,7 +110,9 @@ boardForm lightSquare darkSquare boardBBox =
   let
     ssize = squareSize boardBBox
     imageDims = V2 ssize ssize
-    chooseImage x y = ifThenElse (floor (x + y) `mod` (2 :: Integer) == 0) lightSquare darkSquare
+    chooseImage x y = if (floor (x + y) `mod` (2 :: Integer) == 0)
+                      then lightSquare
+                      else darkSquare
     mkForm x y = image imageDims $ chooseImage x y
   in
     toForm $ collage [move (V2 hOff vOff) $ mkForm x y |
