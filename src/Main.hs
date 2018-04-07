@@ -20,13 +20,12 @@ import           System.Directory
 import           Board
 import           Model
 
-data Action =
-  DoNothing |
-  ResizeWindow (V2 Int) |
-  ToggleBoardColor |
-  MoveMouse (V2 Int) |
-  StartDrag (V2 Int) |
-  Drop (V2 Int)
+data Action = DoNothing
+            | ResizeWindow (V2 Int)
+            | ToggleBoardColor
+            | MoveMouse (V2 Int)
+            | StartDrag (V2 Int)
+            | Drop (V2 Int)
 
 backgroundColor :: Color
 backgroundColor = rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
@@ -51,74 +50,74 @@ update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
-  [Window.resizes ResizeWindow
-  , Keyboard.presses $ \key -> case key of
-      Keyboard.BKey -> ToggleBoardColor
-      _             -> DoNothing
-  , Mouse.downs $ \button loc -> case button of
-      Mouse.LeftButton -> StartDrag loc
-      _                -> DoNothing
-  , Mouse.ups $ \button loc -> case button of
-      Mouse.LeftButton -> Drop loc
-      _                -> DoNothing
-  , Mouse.moves $ \loc -> MoveMouse loc
-  ]
+    [ Window.resizes ResizeWindow
+    , Keyboard.presses $ \key -> case key of
+        Keyboard.BKey -> ToggleBoardColor
+        _             -> DoNothing
+    , Mouse.downs $ \button loc -> case button of
+        Mouse.LeftButton -> StartDrag loc
+        _                -> DoNothing
+    , Mouse.ups $ \button loc -> case button of
+        Mouse.LeftButton -> Drop loc
+        _                -> DoNothing
+    , Mouse.moves $ \loc -> MoveMouse loc
+    ]
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets _ Model {
-    windowDims
-  , boardBBox
-  , boardColor
-  , board
-  , mousePos} = let
-    showBoardColor = fmap toLower (show boardColor)
-    lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
-    darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
-  in
-    Graphics2D $ collage [
-      background (fromIntegral <$> windowDims)
-      , move border $ boardForm lightSquare darkSquare boardBBox
-      , move border $ piecesForm boardBBox board assets mousePos]
+view assets _ Model
+    { windowDims
+    , boardBBox
+    , boardColor
+    , board
+    , mousePos} = let
+        showBoardColor = fmap toLower (show boardColor)
+        lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
+        darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
+      in
+        Graphics2D $ collage
+            [ background (fromIntegral <$> windowDims)
+            , move border $ boardForm lightSquare darkSquare boardBBox
+            , move border $ piecesForm boardBBox board assets mousePos
+            ]
 
 main :: IO ()
 main = do
-  engine <- SDL.startupWith $ SDL.defaultConfig
-    { SDL.windowIsResizable = True
-    , SDL.windowDimensions = initialWindowDims
-    , SDL.windowIsFullscreen = False
-    , SDL.windowTitle = "Kriegspiel"
-    }
-    
-  imageDir <- (</> "images") <$> getCurrentDirectory
-  let assetList = [  ("b_bishop_png_withShadow.png", "b_bishop")
-                   , ("b_king_png_withShadow.png", "b_king")
-                   , ("b_knight_png_withShadow.png", "b_knight")
-                   , ("b_pawn_png_withShadow.png", "b_pawn")
-                   , ("b_queen_png_withShadow.png", "b_queen")
-                   , ("b_rook_png_withShadow.png", "b_rook")
-                   , ("w_bishop_png_withShadow.png", "w_bishop")
-                   , ("w_king_png_withShadow.png", "w_king")
-                   , ("w_knight_png_withShadow.png", "w_knight")
-                   , ("w_pawn_png_withShadow.png", "w_pawn")
-                   , ("w_queen_png_withShadow.png", "w_queen")
-                   , ("w_rook_png_withShadow.png", "w_rook")
-                   , ("square_gray_light.png", "square_gray_light")
-                   , ("square_gray_dark.png", "square_gray_dark")
-                   , ("square_brown_light.png", "square_brown_light")
-                   , ("square_brown_dark.png", "square_brown_dark")
-                  ]
-      loadAssets' [] game loaded = game loaded
-      loadAssets' ((file, key):files) game loaded = do
-        SDL.withImage engine (imageDir </> file) $ \img ->
-          loadAssets' files game (M.insert key img loaded)
-      loadAssets files game = loadAssets' files game M.empty
+    engine <- SDL.startupWith $ SDL.defaultConfig
+        { SDL.windowIsResizable = True
+        , SDL.windowDimensions = initialWindowDims
+        , SDL.windowIsFullscreen = False
+        , SDL.windowTitle = "Kriegspiel"
+        }
 
-  loadAssets assetList $ \allAssets ->
-    run engine defaultConfig GameLifecycle
-      { initialFn       = initial
-      , updateFn        = update
-      , subscriptionsFn = subscriptions
-      , viewFn          = view allAssets engine
-      }
-      
+    imageDir <- (</> "images") <$> getCurrentDirectory
+    let assetList = [ ("b_bishop_png_withShadow.png", "b_bishop")
+                    , ("b_king_png_withShadow.png", "b_king")
+                    , ("b_knight_png_withShadow.png", "b_knight")
+                    , ("b_pawn_png_withShadow.png", "b_pawn")
+                    , ("b_queen_png_withShadow.png", "b_queen")
+                    , ("b_rook_png_withShadow.png", "b_rook")
+                    , ("w_bishop_png_withShadow.png", "w_bishop")
+                    , ("w_king_png_withShadow.png", "w_king")
+                    , ("w_knight_png_withShadow.png", "w_knight")
+                    , ("w_pawn_png_withShadow.png", "w_pawn")
+                    , ("w_queen_png_withShadow.png", "w_queen")
+                    , ("w_rook_png_withShadow.png", "w_rook")
+                    , ("square_gray_light.png", "square_gray_light")
+                    , ("square_gray_dark.png", "square_gray_dark")
+                    , ("square_brown_light.png", "square_brown_light")
+                    , ("square_brown_dark.png", "square_brown_dark")
+                    ]
+        loadAssets' [] game loaded = game loaded
+        loadAssets' ((file, key):files) game loaded = do
+            SDL.withImage engine (imageDir </> file) $ \img ->
+                loadAssets' files game (M.insert key img loaded)
+        loadAssets files game = loadAssets' files game M.empty
+
+    loadAssets assetList $ \allAssets ->
+        run engine defaultConfig GameLifecycle
+            { initialFn       = initial
+            , updateFn        = update
+            , subscriptionsFn = subscriptions
+            , viewFn          = view allAssets engine
+            }

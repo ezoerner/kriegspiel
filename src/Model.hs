@@ -8,17 +8,18 @@ import qualified Data.Map.Strict as M
 import           Data.Maybe.HT
 import           PieceRules
 
-data Model = Model {
-    windowDims :: V2 Int
-    , boardBBox :: BoundingSquare
-    , boardColor :: BoardColor
-    , board :: Board
-    , mousePos :: V2 Int
-    , posInDrag :: Maybe BoardPosition
-} deriving (Show)
+data Model = Model
+    { windowDims :: !(V2 Int)
+    , boardBBox :: !BoundingSquare
+    , boardColor :: !BoardColor
+    , board :: !Board
+    , mousePos :: !(V2 Int)
+    , posInDrag :: !(Maybe BoardPosition)
+    } deriving (Show)
   
 initialModel :: V2 Int -> Model
-initialModel initialWindowDims = let
+initialModel initialWindowDims =
+  let
     bbox = calcBoardBBox initialWindowDims
   in
     Model initialWindowDims bbox Brown initialPosition (pure 0) Nothing
@@ -30,7 +31,8 @@ resize model windowDims = let
     model {windowDims, boardBBox}
 
 startDragPiece :: Model -> V2 Int -> Model
-startDragPiece model@Model{boardBBox, board} globalPoint =  let
+startDragPiece model@Model{boardBBox, board} globalPoint =
+  let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
     maybeBoardPos = findPositionWithPiece boardBBox board localPoint
     putInDrag = (\p -> p {inDrag = True})
@@ -38,19 +40,19 @@ startDragPiece model@Model{boardBBox, board} globalPoint =  let
   in
     case maybeBoardPos of
       Nothing -> model
-      Just boardPos -> model {
-            board = newBoard boardPos
+      Just boardPos -> model
+          { board = newBoard boardPos
           , posInDrag = Just boardPos
           }
 
 dropPiece :: Model -> V2 Int -> Model
-dropPiece
-  model@Model{boardBBox, board, posInDrag = Just dragPos}
-  globalPoint = let
+dropPiece model@Model{boardBBox, board, posInDrag = Just dragPos}
+          globalPoint =
+  let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
     piece = board M.! dragPos
     maybeTargetPos = toBoardPosition boardBBox localPoint >>= \toPos ->
-                        isLegalMove dragPos toPos piece `toMaybe` toPos
+      isLegalMove dragPos toPos piece `toMaybe` toPos
   in
     model {board = dropFromTo board dragPos maybeTargetPos, posInDrag = Nothing}
-    
+dropPiece model _ = model
