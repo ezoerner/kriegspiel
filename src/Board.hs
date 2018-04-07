@@ -101,9 +101,9 @@ calcBoardBBox windowSize =
 
 isOnBoard :: BoardPosition -> Bool
 isOnBoard pos = fst pos >= fst minPosition &&
-                  snd pos >= snd minPosition &&
-                  fst pos <= fst maxPosition &&
-                  snd pos <= snd maxPosition
+                snd pos >= snd minPosition &&
+                fst pos <= fst maxPosition &&
+                snd pos <= snd maxPosition
 
 boardForm :: Engine e => Image e -> Image e -> BoundingSquare -> Form e
 boardForm lightSquare darkSquare boardBBox =
@@ -115,11 +115,12 @@ boardForm lightSquare darkSquare boardBBox =
                       else darkSquare
     mkForm x y = image imageDims $ chooseImage x y
   in
-    toForm $ collage [move (V2 hOff vOff) $ mkForm x y |
-                        x <- [0..7]
-                      , y <- [0..7]
-                      , let hOff = x * ssize
-                      , let vOff = y * ssize]
+    toForm $ collage [move (V2 hOff vOff) $ mkForm x y
+                        | x <- [0..7]
+                        , y <- [0..7]
+                        , let hOff = x * ssize
+                        , let vOff = y * ssize
+                        ]
 
 piecesForm :: Engine e => BoundingSquare -> Board -> M.Map String (Image e) -> V2 Int -> Form e
 piecesForm bbox board assets mousePos =
@@ -155,16 +156,17 @@ findPositionWithPiece boardBBox board point =
     maybeBoardPos >>=
       \testPos -> fmap (const testPos) $ board M.!? testPos
 
+-- either a legal move (Just toPos) or an aborted drag (Nothing)
 dropFromTo :: Board -> BoardPosition -> Maybe BoardPosition -> Board
 dropFromTo board fromPos maybeToPos =
   let
-    isMoving = isJust maybeToPos
+    legalMove = isJust maybeToPos
     piece = board M.! fromPos
-    willHaveMoved = isMoving || hasMoved piece
+    willHaveMoved = legalMove || hasMoved piece
     destPos = fromMaybe fromPos maybeToPos
     board' = M.insert destPos piece {inDrag = False, hasMoved = willHaveMoved} board
   in
-    if isMoving
+    if legalMove
     then M.delete fromPos board'
     else board'
 
