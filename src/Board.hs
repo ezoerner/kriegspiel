@@ -24,9 +24,6 @@ data Piece = Piece
     , inDrag :: !Bool
     } deriving (Show, Eq)
 
-mkPiece :: PieceType -> Player -> Piece
-mkPiece pieceType player = Piece pieceType player False False
-
 -- for this game a bounding box is always square
 data BoundingSquare = BSquare
     { width :: !Double
@@ -100,18 +97,14 @@ calcBoardBBox windowSize =
   in
     BSquare { width = fromIntegral $ calcBoardSize windowSize, topLeft = border}
 
-isOnBoard :: BoardPosition -> Bool
-isOnBoard pos = fst pos >= fst minPosition &&
-                snd pos >= snd minPosition &&
-                fst pos <= fst maxPosition &&
-                snd pos <= snd maxPosition
-
-boardForm :: Engine e => Image e -> Image e -> BoundingSquare -> Form e
-boardForm lightSquare darkSquare boardBBox =
+boardForm :: Engine e => Image e -> Image e -> BoundingSquare -> Player -> Form e
+boardForm lightSquare darkSquare boardBBox playerOrient =
   let
     ssize = squareSize boardBBox
     imageDims = V2 ssize ssize
-    chooseImage x y = if (floor (x + y) `mod` (2 :: Integer) == 0)
+    pivot White = 0
+    pivot Black = 1
+    chooseImage x y = if (floor (x + y) `mod` (2 :: Integer) == pivot playerOrient)
                       then lightSquare
                       else darkSquare
     mkForm x y = image imageDims $ chooseImage x y
@@ -123,12 +116,15 @@ boardForm lightSquare darkSquare boardBBox =
                         , let vOff = y * ssize
                         ]
 
-piecesForm :: Engine e => BoundingSquare -> Board -> M.Map String (Image e) -> V2 Int -> Form e
-piecesForm bbox board assets mousePos =
+piecesForm :: Engine e => BoundingSquare -> Board -> M.Map String (Image e) ->
+    V2 Int -> Player -> Form e
+piecesForm bbox board assets mousePos playerOrient =
   let
     showPlayer player = toLower (head $ show player)
     showPieceType pieceType = fmap toLower $ show pieceType
-    chooseImage piece = assets M.! ((showPlayer $ player piece) : "_" ++ (showPieceType $ pieceType piece))
+    playerName piece = (showPlayer $ player piece)
+    pieceName piece = (showPieceType $ pieceType piece)
+    chooseImage piece = assets M.! (playerName piece : "_" ++ pieceName piece)
     ssize = squareSize bbox
     imageDims = pure ssize
     mkForm piece = image imageDims $ chooseImage piece
@@ -136,7 +132,7 @@ piecesForm bbox board assets mousePos =
     pieceImage _ (Just piece@Piece {inDrag = True}) =
         move (toBoardLocal (fromIntegral <$> mousePos) bbox - imageDims / 2) $ mkForm piece
     pieceImage boardPosition (Just piece)  =
-      move (toUnitOffset boardPosition * pure ssize) $ mkForm piece
+      move (toUnitOffset boardPosition playerOrient * pure ssize) $ mkForm piece
 
     pieces = [((file, rank), maybePiece) |
       file <- ['a'..'h'],
@@ -144,14 +140,15 @@ piecesForm bbox board assets mousePos =
       let maybePiece = board M.!? (file, rank),
       maybePiece /= Nothing]
     sortedPieces = sortOn (fmap inDrag . snd) pieces
-    imageCollage = collage $ map (\(boardPos, maybePiece) -> pieceImage boardPos maybePiece) $ sortedPieces
+    toImage = \(boardPos, maybePiece) -> pieceImage boardPos maybePiece
+    imageCollage = collage $ map toImage $ sortedPieces
   in
     toForm $ imageCollage
 
-findPositionWithPiece :: BoundingSquare -> Board -> V2 Double -> Maybe BoardPosition
-findPositionWithPiece boardBBox board point =
+findPositionWithPiece :: BoundingSquare -> Board -> V2 Double -> Player -> Maybe BoardPosition
+findPositionWithPiece boardBBox board point playerOrient =
   let
-    maybeBoardPos = toBoardPosition boardBBox point
+    maybeBoardPos = toBoardPosition boardBBox point playerOrient
   in
     maybeBoardPos >>=
       \testPos -> fmap (const testPos) $ board M.!? testPos
@@ -170,18 +167,32 @@ dropFromTo board fromPos maybeToPos =
     then M.delete fromPos board'
     else board'
 
-toUnitOffset :: BoardPosition -> V2 Double
-toUnitOffset (file, rank) = fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)
+toUnitOffset :: BoardPosition -> Player -> V2 Double
+toUnitOffset (file, rank) White = fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)
+toUnitOffset (file, rank) Black = fromIntegral <$> V2 (ord file - ord 'a') (rank - 1)
 
-toBoardPosition :: BoundingSquare -> V2 Double -> Maybe BoardPosition
-toBoardPosition bbox (V2 x y) = let
+toBoardPosition :: BoundingSquare -> V2 Double -> Player -> Maybe BoardPosition
+toBoardPosition bbox (V2 x y) playerOrient = let
     ssize = squareSize bbox
-    tryPos = (chr $ ord 'a' + (floor $ x / ssize), 8 - (floor $ y / ssize))
+    tryPos White = (chr $ ord 'a' + (floor $ x / ssize), 8 - (floor $ y / ssize))
+    tryPos Black = (chr $ ord 'a' + (floor $ x / ssize), (floor $ y / ssize) + 1)
+    thisTryPos = tryPos playerOrient
   in
-    isOnBoard tryPos `toMaybe` tryPos
+    isOnBoard thisTryPos `toMaybe` thisTryPos
 
 squareSize :: BoundingSquare -> Double
 squareSize bbox = width bbox / 8
 
 toBoardLocal :: V2 Double -> BoundingSquare -> V2 Double
 toBoardLocal globalV2 bbox = globalV2 - topLeft bbox
+
+-- Private functions
+
+mkPiece :: PieceType -> Player -> Piece
+mkPiece pieceType player = Piece pieceType player False False
+
+isOnBoard :: BoardPosition -> Bool
+isOnBoard pos = fst pos >= fst minPosition &&
+                snd pos >= snd minPosition &&
+                fst pos <= fst maxPosition &&
+                snd pos <= snd maxPosition

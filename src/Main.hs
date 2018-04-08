@@ -23,6 +23,7 @@ import           Model
 data Action = DoNothing
             | ResizeWindow (V2 Int)
             | ToggleBoardColor
+            | FlipBoard
             | MoveMouse (V2 Int)
             | StartDrag (V2 Int)
             | Drop (V2 Int)
@@ -43,8 +44,10 @@ update :: Engine e => Model -> Action -> (Model, Cmd e Action)
 update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
 update model@Model{boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
 update model@Model{boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
+update model@Model{boardOrient = White} FlipBoard = (model {boardOrient = Black}, Cmd.none)
+update model@Model{boardOrient = Black} FlipBoard = (model {boardOrient = White}, Cmd.none)
 update model (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
-update model (Drop globalPoint) = (dropPiece model globalPoint, Cmd.none)
+update model@Model{boardOrient} (Drop globalPoint) = (dropPiece model globalPoint boardOrient, Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
 
@@ -53,6 +56,7 @@ subscriptions = Sub.batch
     [ Window.resizes ResizeWindow
     , Keyboard.presses $ \key -> case key of
         Keyboard.BKey -> ToggleBoardColor
+        Keyboard.FKey -> FlipBoard
         _             -> DoNothing
     , Mouse.downs $ \button loc -> case button of
         Mouse.LeftButton -> StartDrag loc
@@ -69,6 +73,7 @@ view assets _ Model
     { windowDims
     , boardBBox
     , boardColor
+    , boardOrient
     , board
     , mousePos} = let
         showBoardColor = fmap toLower (show boardColor)
@@ -77,8 +82,8 @@ view assets _ Model
       in
         Graphics2D $ collage
             [ background (fromIntegral <$> windowDims)
-            , move border $ boardForm lightSquare darkSquare boardBBox
-            , move border $ piecesForm boardBBox board assets mousePos
+            , move border $ boardForm lightSquare darkSquare boardBBox boardOrient
+            , move border $ piecesForm boardBBox board assets mousePos boardOrient
             ]
 
 main :: IO ()

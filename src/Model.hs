@@ -13,6 +13,7 @@ data Model = Model
     { windowDims :: !(V2 Int)
     , boardBBox :: !BoundingSquare
     , boardColor :: !BoardColor
+    , boardOrient :: !Player
     , board :: !Board
     , mousePos :: !(V2 Int)
     , posInDrag :: !(Maybe BoardPosition)
@@ -23,7 +24,7 @@ initialModel initialWindowDims =
   let
     bbox = calcBoardBBox initialWindowDims
   in
-    Model initialWindowDims bbox Brown initialPosition (pure 0) Nothing
+    Model initialWindowDims bbox Brown White initialPosition (pure 0) Nothing
 
 resize :: Model -> V2 Int -> Model
 resize model windowDims = let
@@ -32,10 +33,10 @@ resize model windowDims = let
     model {windowDims, boardBBox}
 
 startDragPiece :: Model -> V2 Int -> Model
-startDragPiece model@Model{boardBBox, board} globalPoint =
+startDragPiece model@Model{boardBBox, board, boardOrient} globalPoint =
   let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
-    maybeBoardPos = findPositionWithPiece boardBBox board localPoint
+    maybeBoardPos = findPositionWithPiece boardBBox board localPoint boardOrient
     putInDrag = (\p -> p {inDrag = True})
     newBoard boardPos = M.adjust putInDrag boardPos board
   in
@@ -46,14 +47,13 @@ startDragPiece model@Model{boardBBox, board} globalPoint =
           , posInDrag = Just boardPos
           }
 
-dropPiece :: Model -> V2 Int -> Model
+dropPiece :: Model -> V2 Int -> Player -> Model
 dropPiece model@Model{boardBBox, board, posInDrag = Just dragPos}
-          globalPoint =
+          globalPoint playerOrient =
   let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
-    piece = board M.! dragPos
-    maybeTargetPos = toBoardPosition boardBBox localPoint >>= \toPos ->
-      isLegalMove dragPos toPos board `toMaybe` toPos
+    maybeTargetPos = toBoardPosition boardBBox localPoint playerOrient >>=
+        \toPos -> isLegalMove dragPos toPos board `toMaybe` toPos
   in
     model {board = dropFromTo board dragPos maybeTargetPos, posInDrag = Nothing}
-dropPiece model _ = model
+dropPiece model _ _ = model
