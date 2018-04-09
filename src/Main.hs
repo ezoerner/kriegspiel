@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase #-}
 
 import           Data.Char (toLower)
 import qualified Data.Map.Strict as M
@@ -31,7 +32,7 @@ data Action = DoNothing
 backgroundColor :: Color
 backgroundColor = rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
 
-background :: (V2 Double) -> Form e
+background :: V2 Double -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 
 initialWindowDims :: V2 Int
@@ -54,7 +55,7 @@ update model _ = (model, Cmd.none)
 subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
     [ Window.resizes ResizeWindow
-    , Keyboard.presses $ \key -> case key of
+    , Keyboard.presses $ \case
         Keyboard.BKey -> ToggleBoardColor
         Keyboard.FKey -> FlipBoard
         _             -> DoNothing
@@ -114,7 +115,7 @@ main = do
                     , ("square_brown_dark.png", "square_brown_dark")
                     ]
         loadAssets' [] game loaded = game loaded
-        loadAssets' ((file, key):files) game loaded = do
+        loadAssets' ((file, key):files) game loaded =
             SDL.withImage engine (imageDir </> file) $ \img ->
                 loadAssets' files game (M.insert key img loaded)
         loadAssets files game = loadAssets' files game M.empty

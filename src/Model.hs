@@ -37,7 +37,7 @@ startDragPiece model@Model{boardBBox, board, boardOrient} globalPoint =
   let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
     maybeBoardPos = findPositionWithPiece boardBBox board localPoint boardOrient
-    putInDrag = (\p -> p {inDrag = True})
+    putInDrag p = p {inDrag = True}
     newBoard boardPos = M.adjust putInDrag boardPos board
   in
     case maybeBoardPos of

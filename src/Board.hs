@@ -104,7 +104,7 @@ boardForm lightSquare darkSquare boardBBox playerOrient =
     imageDims = V2 ssize ssize
     pivot White = 0
     pivot Black = 1
-    chooseImage x y = if (floor (x + y) `mod` (2 :: Integer) == pivot playerOrient)
+    chooseImage x y = if floor (x + y) `mod` (2 :: Integer) == pivot playerOrient
                       then lightSquare
                       else darkSquare
     mkForm x y = image imageDims $ chooseImage x y
@@ -121,9 +121,9 @@ piecesForm :: Engine e => BoundingSquare -> Board -> M.Map String (Image e) ->
 piecesForm bbox board assets mousePos playerOrient =
   let
     showPlayer player = toLower (head $ show player)
-    showPieceType pieceType = fmap toLower $ show pieceType
-    playerName piece = (showPlayer $ player piece)
-    pieceName piece = (showPieceType $ pieceType piece)
+    showPieceType pieceType = toLower <$> show pieceType
+    playerName piece = showPlayer $ player piece
+    pieceName piece = showPieceType $ pieceType piece
     chooseImage piece = assets M.! (playerName piece : "_" ++ pieceName piece)
     ssize = squareSize bbox
     imageDims = pure ssize
@@ -138,12 +138,11 @@ piecesForm bbox board assets mousePos playerOrient =
       file <- ['a'..'h'],
       rank <- [1..8],
       let maybePiece = board M.!? (file, rank),
-      maybePiece /= Nothing]
+      isJust maybePiece]
     sortedPieces = sortOn (fmap inDrag . snd) pieces
-    toImage = \(boardPos, maybePiece) -> pieceImage boardPos maybePiece
-    imageCollage = collage $ map toImage $ sortedPieces
+    imageCollage = collage $ map (uncurry pieceImage) sortedPieces
   in
-    toForm $ imageCollage
+    toForm imageCollage
 
 findPositionWithPiece :: BoundingSquare -> Board -> V2 Double -> Player -> Maybe BoardPosition
 findPositionWithPiece boardBBox board point playerOrient =
@@ -174,8 +173,8 @@ toOffset (file, rank) Black ssize = (fromIntegral <$> V2 (ord file - ord 'a') (r
 toBoardPosition :: BoundingSquare -> V2 Double -> Player -> Maybe BoardPosition
 toBoardPosition bbox (V2 x y) playerOrient = let
     ssize = squareSize bbox
-    tryPos White = (chr $ ord 'a' + (floor $ x / ssize), 8 - (floor $ y / ssize))
-    tryPos Black = (chr $ ord 'a' + (floor $ x / ssize), (floor $ y / ssize) + 1)
+    tryPos White = (chr $ ord 'a' + floor (x / ssize), 8 - floor (y / ssize))
+    tryPos Black = (chr $ ord 'a' + floor (x / ssize), floor (y / ssize) + 1)
     thisTryPos = tryPos playerOrient
   in
     isOnBoard thisTryPos `toMaybe` thisTryPos

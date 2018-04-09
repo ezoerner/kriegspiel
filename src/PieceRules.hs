@@ -16,7 +16,7 @@ isLegalMove fromPos toPos board =
 
 pieceRule :: Piece -> BoardPosition -> BoardPosition -> Board -> Bool
     -- Pawn
-pieceRule (Piece {pieceType = Pawn, player, hasMoved})
+pieceRule Piece{pieceType = Pawn, player, hasMoved}
     fromPos@(fromFile, fromRank) toPos board =
   let
     dir = direction player
@@ -45,7 +45,7 @@ pawnTries board thisPlayer =
     isTry (_, pos:_) = (player <$> board M.!? pos) == Just (otherPlayer thisPlayer)
     triesAt (fromPos@(file, rank), _) = filter isTry [(fromPos, [(succ file, rank + dir)]), (fromPos, [(pred file, rank + dir)])]
   in
-    M.fromListWith (++) $ concat $ fmap triesAt pawnAssocs
+    M.fromListWith (++) $ concatMap triesAt pawnAssocs
 
 direction :: Num a => Player -> a
 direction player = if player == White then 1 else -1
