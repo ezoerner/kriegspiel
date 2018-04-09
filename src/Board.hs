@@ -167,8 +167,10 @@ dropFromTo board fromPos maybeToPos =
     else board'
 
 toOffset :: BoardPosition -> Player -> Double -> V2 Double
-toOffset (file, rank) White ssize = (fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)) * pure ssize
-toOffset (file, rank) Black ssize = (fromIntegral <$> V2 (ord file - ord 'a') (rank - 1)) * pure ssize
+toOffset (file, rank) White ssize =
+    (fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)) * pure ssize
+toOffset (file, rank) Black ssize =
+    (fromIntegral <$> V2 (ord file - ord 'a') (rank - 1)) * pure ssize
 
 toBoardPosition :: BoundingSquare -> V2 Double -> Player -> Maybe BoardPosition
 toBoardPosition bbox (V2 x y) playerOrient = let

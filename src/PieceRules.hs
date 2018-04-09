@@ -43,7 +43,11 @@ pawnTries board thisPlayer =
         && player piece == thisPlayer
     pawnAssocs = filter isPawnForThisPlayer $ M.assocs board
     isTry (_, pos:_) = (player <$> board M.!? pos) == Just (otherPlayer thisPlayer)
-    triesAt (fromPos@(file, rank), _) = filter isTry [(fromPos, [(succ file, rank + dir)]), (fromPos, [(pred file, rank + dir)])]
+    triesAt (fromPos@(file, rank), _) =
+        filter isTry [
+                       (fromPos, [(succ file, rank + dir)])
+                     , (fromPos, [(pred file, rank + dir)])
+                     ]
   in
     M.fromListWith (++) $ concatMap triesAt pawnAssocs
 

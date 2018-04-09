@@ -30,7 +30,8 @@ data Action = DoNothing
             | Drop (V2 Int)
 
 backgroundColor :: Color
-backgroundColor = rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
+backgroundColor =
+    rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
 
 background :: V2 Double -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
