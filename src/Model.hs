@@ -24,15 +24,17 @@ data GameState = GameState
     { next :: Either GameOver Player
     , pawnTries :: !PawnTries
     , pieceGone :: !(Maybe Piece)
-    , attemptedMoveIllegal :: !Bool
-    , attemptedMoveImpossible :: !Bool
+    , moveAttempt :: !(Maybe MoveAttempt)
     , check :: !(Maybe Check)
     , scores :: Scores
     } deriving (Show)
 
 initialGameState :: GameState
 initialGameState = 
-    GameState (Right White) M.empty Nothing False False Nothing (Scores 0 0)
+    GameState (Right White) M.empty Nothing Nothing Nothing (Scores 0 0)
+
+data MoveAttempt = Illegal | Impossible
+    deriving (Show)
 
 data Scores = Scores { white :: Integer, black :: Integer }
     deriving (Show)
