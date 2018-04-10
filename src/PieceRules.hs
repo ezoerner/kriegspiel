@@ -7,6 +7,8 @@ import           Data.Maybe (isNothing, fromMaybe)
 
 import Board
 
+type PawnTries = M.Map BoardPosition [BoardPosition]
+
 isLegalMove :: BoardPosition -> BoardPosition -> Board -> Bool
 isLegalMove fromPos toPos board =
   let
@@ -35,7 +37,7 @@ isVacant :: Board -> BoardPosition -> Bool
 isVacant board pos = isNothing $ board M.!? pos
 
 -- Map of fromPos, [toPos]
-pawnTries :: Board -> Player -> M.Map BoardPosition [BoardPosition]
+pawnTries :: Board -> Player -> PawnTries
 pawnTries board thisPlayer =
   let
     dir = direction thisPlayer

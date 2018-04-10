@@ -17,14 +17,56 @@ data Model = Model
     , board :: !Board
     , mousePos :: !(V2 Int)
     , posInDrag :: !(Maybe BoardPosition)
+    , gameState :: !GameState
     } deriving (Show)
-  
+
+data GameState = GameState
+    { toMove :: !(Maybe Player)
+    , pawnTries :: !PawnTries
+    , pieceGone :: !(Maybe Piece)
+    , attemptedMoveIllegal :: !Bool
+    , attemptedMoveImpossible :: !Bool
+    , check :: !(Maybe Check)
+    , gameOver :: !(Maybe GameOver)
+    } deriving (Show)
+
+mkGameState :: Player -> GameState
+mkGameState player =
+    GameState (Just player) M.empty Nothing False False Nothing Nothing
+
+initialGameState :: GameState
+initialGameState = mkGameState White
+
+data Check = Check
+    { fromPos :: !BoardPosition
+    , toPos :: !BoardPosition
+    } deriving (Show)
+
+data CheckType = Vertical | Horizontal | LongDiagonal | ShortDiagonal | Knight
+
+data GameOver = Checkmate { winner :: !Player } | Draw DrawReason
+    deriving (Show)
+
+data DrawReason = Stalemate | Repetition | InsufficientForce | FiftyMove
+    deriving (Show)
+
+checkType :: Check -> CheckType
+checkType = undefined
+
 initialModel :: V2 Int -> Model
 initialModel initialWindowDims =
   let
     bbox = calcBoardBBox initialWindowDims
   in
-    Model initialWindowDims bbox Brown White initialPosition (pure 0) Nothing
+    Model
+        initialWindowDims
+        bbox
+        Brown
+        White
+        initialPosition
+        (pure 0)
+        Nothing
+        initialGameState
 
 resize :: Model -> V2 Int -> Model
 resize model windowDims = let
