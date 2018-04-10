@@ -21,21 +21,21 @@ data Model = Model
     } deriving (Show)
 
 data GameState = GameState
-    { toMove :: !(Maybe Player)
+    { next :: Either GameOver Player
     , pawnTries :: !PawnTries
     , pieceGone :: !(Maybe Piece)
     , attemptedMoveIllegal :: !Bool
     , attemptedMoveImpossible :: !Bool
     , check :: !(Maybe Check)
-    , gameOver :: !(Maybe GameOver)
+    , scores :: Scores
     } deriving (Show)
 
-mkGameState :: Player -> GameState
-mkGameState player =
-    GameState (Just player) M.empty Nothing False False Nothing Nothing
-
 initialGameState :: GameState
-initialGameState = mkGameState White
+initialGameState = 
+    GameState (Right White) M.empty Nothing False False Nothing (Scores 0 0)
+
+data Scores = Scores { white :: Integer, black :: Integer }
+    deriving (Show)
 
 data Check = Check
     { fromPos :: !BoardPosition
