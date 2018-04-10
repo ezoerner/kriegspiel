@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 
 import           Data.Char (toLower)
 import qualified Data.Map.Strict as M
@@ -71,22 +72,17 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets _ Model
-    { windowDims
-    , boardBBox
-    , boardColor
-    , boardOrient
-    , board
-    , mousePos} = let
-        showBoardColor = fmap toLower (show boardColor)
-        lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
-        darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
-      in
-        Graphics2D $ collage
-            [ background (fromIntegral <$> windowDims)
-            , move border $ boardForm lightSquare darkSquare boardBBox boardOrient
-            , move border $ piecesForm boardBBox board assets mousePos boardOrient
-            ]
+view assets _ Model{..} =
+  let
+    showBoardColor = fmap toLower (show boardColor)
+    lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
+    darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
+  in
+    Graphics2D $ collage
+        [ background (fromIntegral <$> windowDims)
+        , move border $ boardForm lightSquare darkSquare boardBBox boardOrient
+        , move border $ piecesForm boardBBox board assets mousePos boardOrient
+        ]
 
 main :: IO ()
 main = do
