@@ -21,6 +21,7 @@ import qualified Helm.Window as Window
 
 import           Board
 import           Model
+import           View
 
 data Action = DoNothing
             | ResizeWindow (V2 Int)
@@ -38,7 +39,7 @@ background :: V2 Double -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 
 initialWindowDims :: V2 Int
-initialWindowDims = V2 640 640
+initialWindowDims = V2 800 640
 
 initial :: (Model, Cmd SDLEngine Action)
 initial = (initialModel initialWindowDims, Cmd.none)
@@ -77,9 +78,11 @@ view assets _ Model{..} =
     showBoardColor = fmap toLower (show boardColor)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
     darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
+    overlayColor = rgb 0 0 0
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
+        , overlay overlayColor boardBBox gameState
         , move border $ boardForm lightSquare darkSquare boardBBox boardOrient
         , move border $ piecesForm boardBBox board assets mousePos boardOrient
         ]

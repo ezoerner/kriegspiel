@@ -21,19 +21,19 @@ data Model = Model
     } deriving (Show)
 
 data GameState = GameState
-    { next :: Either GameOver Player
+    { next :: !(Either GameOver Player)
+    , prev :: !MoveAttempt
     , pawnTries :: !PawnTries
     , pieceGone :: !(Maybe Piece)
-    , moveAttempt :: !(Maybe MoveAttempt)
     , check :: !(Maybe Check)
     , scores :: Scores
     } deriving (Show)
 
 initialGameState :: GameState
 initialGameState = 
-    GameState (Right White) M.empty Nothing Nothing Nothing (Scores 0 0)
+    GameState (Right White) Successful M.empty Nothing Nothing (Scores 0 0)
 
-data MoveAttempt = Illegal | Impossible
+data MoveAttempt = Successful | Illegal | Impossible
     deriving (Show)
 
 data Scores = Scores { white :: Integer, black :: Integer }
@@ -61,14 +61,15 @@ initialModel initialWindowDims =
     bbox = calcBoardBBox initialWindowDims
   in
     Model
-        initialWindowDims
-        bbox
-        Brown
-        White
-        initialPosition
-        (pure 0)
-        Nothing
-        initialGameState
+        { windowDims = initialWindowDims
+        , boardBBox = bbox
+        , boardColor = Brown
+        , boardOrient = White
+        , board = initialPosition
+        , mousePos = pure 0
+        , posInDrag = Nothing
+        , gameState = initialGameState
+        }
 
 resize :: Model -> V2 Int -> Model
 resize model windowDims = let
