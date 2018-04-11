@@ -12,24 +12,31 @@ import           Model
 import           Board
 
 overlay :: Color -> BoundingSquare -> GameState -> Form SDLEngine
-overlay color BSquare{width, topLeft = (V2 left top)} GameState{next, prev} =
+overlay color BSquare{width, topLeft = (V2 left top)}
+    GameState{next, prev, check} =
   let
     x = width / 2 + left
     y = top / 2
     sidebarX = width + left + 100
     sidebarY = top + 15
     textHeight = 30
-    showMoveAttempt Successful = ""
-    showMoveAttempt Illegal = "No"
-    showMoveAttempt Impossible = "Hell, No!"
-    showNext (Right player) = show player ++ " To Move"
-    showNext (Left gameOver) = show gameOver -- TO DO improve
+    showPrev Successful = ""
+    showPrev Illegal = "No"
+    showPrev Impossible = "Hell, No!"
+    showNext (Right player) = " To Move: " ++ show player
+    showNext (Left gameOver) = show gameOver -- TO DO improve this
+    showCheck (Just LongDiagonal) = "Check on long diagonal"
+    showCheck (Just ShortDiagonal) = "Check on short diagonal"
+    showCheck (Just KnightCheck) = "Check from a Knight"
+    showCheck (Just ckType) = show ckType ++ " check"
+    showCheck Nothing = ""
   in
     group [ move (V2 x y) $ text $ Text.height textHeight $
                 Text.color color $
                 Text.toText $ showNext next
           , move (V2 sidebarX sidebarY) $ text $ Text.height textHeight $
+                Text.color color $ Text.toText $ showCheck (checkType <$> check)
+          , move (V2 sidebarX $ sidebarY + textHeight) $ text $ Text.height textHeight $
                 Text.color color $
-                Text.toText $ showMoveAttempt prev
+                Text.toText $ showPrev prev
           ]
-overlay _ _ _ = blank

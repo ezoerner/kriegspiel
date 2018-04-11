@@ -2,7 +2,9 @@
 
 module Model where
 
+import           Data.Char (ord)
 import qualified Data.Map.Strict as M
+import           Data.Maybe (isJust)
 import           Data.Maybe.HT (toMaybe)
 import           Linear.V2 (V2)
 
@@ -45,6 +47,7 @@ data Check = Check
     } deriving (Show)
 
 data CheckType = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
+    deriving (Show)
 
 data GameOver = Checkmate { winner :: !Player } | Draw DrawReason
     deriving (Show)
@@ -53,7 +56,11 @@ data DrawReason = Stalemate | Repetition | InsufficientForce | FiftyMove
     deriving (Show)
 
 checkType :: Check -> CheckType
-checkType = undefined
+checkType Check{fromPos = (fromFile, fromRank), toPos = (toFile, toRank)}
+    | fromFile == toFile = Vertical
+    | fromRank == toRank = Horizontal
+    | ord fromFile - ord toFile == fromRank - toRank = LongDiagonal -- TO DO differentiate between long and short diagonal
+    | otherwise = KnightCheck
 
 initialModel :: V2 Int -> Model
 initialModel initialWindowDims =
@@ -78,10 +85,16 @@ resize model windowDims = let
     model {windowDims, boardBBox}
 
 startDragPiece :: Model -> V2 Int -> Model
-startDragPiece model@Model{boardBBox, board, boardOrient} globalPoint =
+startDragPiece model@Model
+    { boardBBox
+    , board
+    , boardOrient
+    , gameState = GameState{next = Right playerTurn}
+    } globalPoint =
   let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
-    maybeBoardPos = findPositionWithPiece boardBBox board localPoint boardOrient
+    maybeBoardPos =
+        findPositionWithPiece boardBBox board localPoint boardOrient playerTurn
     putInDrag p = p {inDrag = True}
     newBoard boardPos = M.adjust putInDrag boardPos board
   in
@@ -91,14 +104,25 @@ startDragPiece model@Model{boardBBox, board, boardOrient} globalPoint =
           { board = newBoard boardPos
           , posInDrag = Just boardPos
           }
+startDragPiece model _ = model  -- Game Over
 
 dropPiece :: Model -> V2 Int -> Player -> Model
-dropPiece model@Model{boardBBox, board, posInDrag = Just dragPos}
-          globalPoint playerOrient =
+dropPiece model@Model
+    { boardBBox
+    , board
+    , gameState = gameState@GameState{next = Right thisPlayer}
+    , posInDrag = Just dragPos
+    }
+    globalPoint playerOrient =
   let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) boardBBox
     maybeTargetPos = toBoardPosition boardBBox localPoint playerOrient >>=
         \toPos -> isLegalMove dragPos toPos board `toMaybe` toPos
+    nextPlayer = if isJust maybeTargetPos then otherPlayer thisPlayer else thisPlayer
   in
-    model {board = dropFromTo board dragPos maybeTargetPos, posInDrag = Nothing}
+    model
+    { gameState = gameState{next = Right nextPlayer}
+    , board = dropFromTo board dragPos maybeTargetPos
+    , posInDrag = Nothing
+    }
 dropPiece model _ _ = model

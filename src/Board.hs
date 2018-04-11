@@ -3,6 +3,7 @@
 module Board where
 
 import           Control.Applicative (pure)
+import           Control.Monad (guard)
 import           Data.Char (toLower, ord, chr)
 import qualified Data.Map.Strict as M
 import           Data.List (map, sortOn)
@@ -144,13 +145,17 @@ piecesForm bbox board assets mousePos playerOrient =
   in
     toForm imageCollage
 
-findPositionWithPiece :: BoundingSquare -> Board -> V2 Double -> Player -> Maybe BoardPosition
-findPositionWithPiece boardBBox board point playerOrient =
+findPositionWithPiece ::
+    BoundingSquare -> Board -> V2 Double -> Player -> Player ->
+        Maybe BoardPosition
+findPositionWithPiece boardBBox board point playerOrient playerTurn =
   let
     maybeBoardPos = toBoardPosition boardBBox point playerOrient
   in
-    maybeBoardPos >>=
-      \testPos -> fmap (const testPos) $ board M.!? testPos
+    maybeBoardPos >>= \testPos ->
+        board M.!? testPos >>= \piece ->
+        guard (player piece == playerTurn) >>
+        return testPos
 
 -- either a legal move (Just toPos) or an aborted drag (Nothing)
 dropFromTo :: Board -> BoardPosition -> Maybe BoardPosition -> Board
