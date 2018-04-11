@@ -44,7 +44,7 @@ data Check = Check
     , toPos :: !BoardPosition
     } deriving (Show)
 
-data CheckType = Vertical | Horizontal | LongDiagonal | ShortDiagonal | Knight
+data CheckType = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
 
 data GameOver = Checkmate { winner :: !Player } | Draw DrawReason
     deriving (Show)
