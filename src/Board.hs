@@ -22,7 +22,7 @@ data Piece = Piece
     { pieceType :: !PieceType
     , player :: !Player
     , hasMoved :: !Bool
-    , inDrag :: !Bool
+    , inMotion :: !Bool
     } deriving (Show, Eq)
 
 -- for this game a bounding box is always square
@@ -42,11 +42,24 @@ type Rank = Int
 
 type BoardPosition = (File, Rank)
 
-type Board = M.Map BoardPosition Piece
-type Subboard = Board   -- filtered Board
+data Board = Board
+    { positions :: !(M.Map BoardPosition Piece)
+    , bbox :: !BoundingSquare
+    , orient :: !Player
+    , posInMotion :: !(Maybe BoardPosition)
+    }
+    deriving (Show)
 
-initialPosition :: Board
-initialPosition = M.fromList
+initialBoard :: V2 Int -> Board
+initialBoard initialWindowDims = Board
+    { positions = initialPositions
+    , bbox = calcBoardBBox initialWindowDims
+    , orient = White
+    , posInMotion = Nothing
+    }
+
+initialPositions :: M.Map BoardPosition Piece
+initialPositions = M.fromList
     [ (('a', 1), mkPiece Rook White)
     , (('b', 1), mkPiece Knight White)
     , (('c', 1), mkPiece Bishop White)
@@ -98,14 +111,14 @@ calcBoardBBox windowSize =
   in
     BSquare { width = fromIntegral $ calcBoardSize windowSize, topLeft = border}
 
-boardForm :: Engine e => Image e -> Image e -> BoundingSquare -> Player -> Form e
-boardForm lightSquare darkSquare boardBBox playerOrient =
+boardForm :: Engine e => Image e -> Image e -> Board -> Form e
+boardForm lightSquare darkSquare Board{bbox, orient} =
   let
-    ssize = squareSize boardBBox
+    ssize = squareSize bbox
     imageDims = V2 ssize ssize
     pivot White = 0
     pivot Black = 1
-    chooseImage x y = if floor (x + y) `mod` (2 :: Integer) == pivot playerOrient
+    chooseImage x y = if floor (x + y) `mod` (2 :: Integer) == pivot orient
                       then lightSquare
                       else darkSquare
     mkForm x y = image imageDims $ chooseImage x y
@@ -117,9 +130,8 @@ boardForm lightSquare darkSquare boardBBox playerOrient =
                         , let vOff = y * ssize
                         ]
 
-piecesForm :: Engine e => BoundingSquare -> Board -> M.Map String (Image e) ->
-    V2 Int -> Player -> Form e
-piecesForm bbox board assets mousePos playerOrient =
+piecesForm :: Engine e => Board -> M.Map String (Image e) -> V2 Int -> Form e
+piecesForm Board{positions, bbox, orient} assets mousePos =
   let
     showPlayer player = toLower (head $ show player)
     showPieceType pieceType = toLower <$> show pieceType
@@ -130,46 +142,47 @@ piecesForm bbox board assets mousePos playerOrient =
     imageDims = pure ssize
     mkForm piece = image imageDims $ chooseImage piece
 
-    pieceImage _ (Just piece@Piece {inDrag = True}) =
+    pieceImage _ (Just piece@Piece{inMotion = True}) =
         move (toBoardLocal (fromIntegral <$> mousePos) bbox - imageDims / 2) $ mkForm piece
     pieceImage boardPosition (Just piece)  =
-      move (toOffset boardPosition playerOrient ssize) $ mkForm piece
+      move (toOffset boardPosition orient ssize) $ mkForm piece
 
     pieces = [((file, rank), maybePiece) |
       file <- ['a'..'h'],
       rank <- [1..8],
-      let maybePiece = board M.!? (file, rank),
+      let maybePiece = positions M.!? (file, rank),
       isJust maybePiece]
-    sortedPieces = sortOn (fmap inDrag . snd) pieces
+    sortedPieces = sortOn (fmap inMotion . snd) pieces
     imageCollage = collage $ map (uncurry pieceImage) sortedPieces
   in
     toForm imageCollage
 
-findPositionWithPiece ::
-    BoundingSquare -> Board -> V2 Double -> Player -> Player ->
-        Maybe BoardPosition
-findPositionWithPiece boardBBox board point playerOrient playerTurn =
+findPositionWithPiece :: Board -> V2 Double -> Player -> Maybe BoardPosition
+findPositionWithPiece Board{positions, bbox, orient} point playerTurn =
   let
-    maybeBoardPos = toBoardPosition boardBBox point playerOrient
+    maybeBoardPos = toBoardPosition bbox point orient
   in
     maybeBoardPos >>= \testPos ->
-        board M.!? testPos >>= \piece ->
+        positions M.!? testPos >>= \piece ->
         guard (player piece == playerTurn) >>
         return testPos
 
--- either a legal move (Just toPos) or an aborted drag (Nothing)
+-- result is either a legal move (Just toPos) or an aborted drag (Nothing)
 dropFromTo :: Board -> BoardPosition -> Maybe BoardPosition -> Board
-dropFromTo board fromPos maybeToPos =
+dropFromTo board@Board{positions} fromPos maybeToPos =
   let
     legalMove = isJust maybeToPos
-    piece = board M.! fromPos
+    piece = positions M.! fromPos
     willHaveMoved = legalMove || hasMoved piece
     destPos = fromMaybe fromPos maybeToPos
-    board' = M.insert destPos piece {inDrag = False, hasMoved = willHaveMoved} board
+    positions' = M.insert
+                    destPos
+                    piece{inMotion = False, hasMoved = willHaveMoved}
+                    positions
   in
     if legalMove
-    then M.delete fromPos board'
-    else board'
+    then board{positions = M.delete fromPos positions', posInMotion = Nothing}
+    else board{positions = positions', posInMotion = Nothing}
 
 toOffset :: BoardPosition -> Player -> Double -> V2 Double
 toOffset (file, rank) White ssize =

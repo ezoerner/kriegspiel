@@ -7,12 +7,11 @@ import           Data.Maybe (isNothing, fromMaybe)
 
 import Board
 
-type PawnTries = M.Map BoardPosition [BoardPosition]
 
 isLegalMove :: BoardPosition -> BoardPosition -> Board -> Bool
-isLegalMove fromPos toPos board =
+isLegalMove fromPos toPos board@Board{positions} =
   let
-    piece = board M.! fromPos
+    piece = positions M.! fromPos
   in
     pieceRule piece fromPos toPos board
 
@@ -34,17 +33,19 @@ pieceRule Piece{pieceType = Pawn, player, hasMoved}
 pieceRule _ _ _ _ = False
 
 isVacant :: Board -> BoardPosition -> Bool
-isVacant board pos = isNothing $ board M.!? pos
+isVacant Board{positions} pos = isNothing $ positions M.!? pos
 
 -- Map of fromPos, [toPos]
+type PawnTries = M.Map BoardPosition [BoardPosition]
+
 pawnTries :: Board -> Player -> PawnTries
-pawnTries board thisPlayer =
+pawnTries Board{positions} thisPlayer =
   let
     dir = direction thisPlayer
     isPawnForThisPlayer (_, piece) = pieceType piece == Pawn
         && player piece == thisPlayer
-    pawnAssocs = filter isPawnForThisPlayer $ M.assocs board
-    isTry (_, pos:_) = (player <$> board M.!? pos) == Just (otherPlayer thisPlayer)
+    pawnAssocs = filter isPawnForThisPlayer $ M.assocs positions
+    isTry (_, pos:_) = (player <$> positions M.!? pos) == Just (otherPlayer thisPlayer)
     triesAt (fromPos@(file, rank), _) =
         filter isTry [
                        (fromPos, [(succ file, rank + dir)])

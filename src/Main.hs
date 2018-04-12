@@ -31,6 +31,10 @@ data Action = DoNothing
             | StartDrag (V2 Int)
             | Drop (V2 Int)
 
+-- experimental
+autoFlip :: Bool
+autoFlip = False
+
 backgroundColor :: Color
 backgroundColor =
     rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
@@ -44,14 +48,19 @@ initialWindowDims = V2 800 640
 initial :: (Model, Cmd SDLEngine Action)
 initial = (initialModel initialWindowDims, Cmd.none)
 
-update :: Engine e => Model -> Action -> (Model, Cmd e Action)
+update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
-update model@Model{boardColor = Brown} ToggleBoardColor = (model {boardColor = Gray}, Cmd.none)
-update model@Model{boardColor = Gray} ToggleBoardColor = (model {boardColor = Brown},  Cmd.none)
-update model@Model{boardOrient = White} FlipBoard = (model {boardOrient = Black}, Cmd.none)
-update model@Model{boardOrient = Black} FlipBoard = (model {boardOrient = White}, Cmd.none)
+update model@Model{board = board@Board{orient = White}} FlipBoard
+    = (model{board = board{orient = Black}}, Cmd.none)
+update model@Model{board = board@Board{orient = Black}} FlipBoard
+    = (model{board = board{orient = White}}, Cmd.none)
 update model (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
-update model@Model{boardOrient} (Drop globalPoint) = (dropPiece model globalPoint boardOrient, Cmd.none)
+update model (Drop globalPoint) =
+  let
+    (model', isLegal) = dropPiece model globalPoint
+    model'' = if autoFlip && isLegal then fst $ update model' FlipBoard else model'
+  in
+    (model'', Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
 update model _ = (model, Cmd.none)
 
@@ -59,7 +68,6 @@ subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
     [ Window.resizes ResizeWindow
     , Keyboard.presses $ \case
-        Keyboard.BKey -> ToggleBoardColor
         Keyboard.FKey -> FlipBoard
         _             -> DoNothing
     , Mouse.downs $ \button loc -> case button of
@@ -73,18 +81,18 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets _ Model{..} =
+view assets _ Model{board = board@Board{..}, ..} =
   let
-    showBoardColor = fmap toLower (show boardColor)
+    showBoardColor = fmap toLower (show Brown)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
     darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
     overlayColor = rgb 0 0 0
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
-        , overlay overlayColor boardBBox gameState
-        , move border $ boardForm lightSquare darkSquare boardBBox boardOrient
-        , move border $ piecesForm boardBBox board assets mousePos boardOrient
+        , overlay overlayColor bbox gameState
+        , move border $ boardForm lightSquare darkSquare board
+        , move border $ piecesForm board assets mousePos
         ]
 
 main :: IO ()

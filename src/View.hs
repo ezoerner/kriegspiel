@@ -15,8 +15,8 @@ overlay :: Color -> BoundingSquare -> GameState -> Form SDLEngine
 overlay color BSquare{width, topLeft = (V2 left top)}
     GameState{next, prev, check} =
   let
-    x = width / 2 + left
-    y = top / 2
+    topX = width / 2 + left
+    topY = top / 2
     sidebarX = width + left + 100
     sidebarY = top + 15
     textHeight = 30
@@ -31,7 +31,7 @@ overlay color BSquare{width, topLeft = (V2 left top)}
     showCheck (Just ckType) = show ckType ++ " check"
     showCheck Nothing = ""
   in
-    group [ move (V2 x y) $ text $ Text.height textHeight $
+    group [ move (V2 topX topY) $ text $ Text.height textHeight $
                 Text.color color $
                 Text.toText $ showNext next
           , move (V2 sidebarX sidebarY) $ text $ Text.height textHeight $
