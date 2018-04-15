@@ -5,6 +5,7 @@
 import           Data.Char (toLower)
 import qualified Data.Map.Strict as M
 import           Linear.V2 (V2(V2))
+import           Options.Applicative
 import           System.FilePath ((</>))
 import           System.Directory
 
@@ -21,6 +22,7 @@ import qualified Helm.Window as Window
 
 import           Board
 import           Model
+import           Options
 import           View
 
 data Action = DoNothing
@@ -30,10 +32,6 @@ data Action = DoNothing
             | MoveMouse (V2 Int)
             | StartDrag (V2 Int)
             | Drop (V2 Int)
-
--- experimental
-hotSeatMode :: Bool
-hotSeatMode = False
 
 backgroundColor :: Color
 backgroundColor =
@@ -45,8 +43,8 @@ background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 initialWindowDims :: V2 Int
 initialWindowDims = V2 800 640
 
-initial :: (Model, Cmd SDLEngine Action)
-initial = (initialModel initialWindowDims, Cmd.none)
+initial :: Options -> (Model, Cmd SDLEngine Action)
+initial options = (initialModel options initialWindowDims, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
@@ -55,10 +53,10 @@ update model@Model{board = board@Board{orient = White}} FlipBoard
 update model@Model{board = board@Board{orient = Black}} FlipBoard
     = (model{board = board{orient = White}}, Cmd.none)
 update model (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
-update model (Drop globalPoint) =
+update model@Model{options = Options{hotSeat}} (Drop globalPoint) =
   let
     (model', isLegal) = dropPiece model globalPoint
-    model'' = if hotSeatMode && isLegal then fst $ update model' FlipBoard else model'
+    model'' = if hotSeat && isLegal then fst $ update model' FlipBoard else model'
   in
     (model'', Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
@@ -96,7 +94,11 @@ view assets _ Model{board = board@Board{..}, ..} =
         ]
 
 main :: IO ()
-main = do
+main = runGame =<< execParser opts
+
+runGame :: Options -> IO ()
+runGame options = do
+    print options
     engine <- SDL.startupWith $ SDL.defaultConfig
         { SDL.windowIsResizable = True
         , SDL.windowDimensions = initialWindowDims
@@ -130,7 +132,7 @@ main = do
 
     loadAssets assetList $ \allAssets ->
         run engine defaultConfig GameLifecycle
-            { initialFn       = initial
+            { initialFn       = initial options
             , updateFn        = update
             , subscriptionsFn = subscriptions
             , viewFn          = view allAssets engine

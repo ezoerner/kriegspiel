@@ -10,6 +10,7 @@ dependencies:
 - linear
 - filepath
 - utility-ht
+- optparse-applicative
 executables:
   kriegspiel:
     main: Main.hs

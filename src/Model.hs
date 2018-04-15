@@ -10,12 +10,14 @@ import           Linear.V2 (V2)
 
 import           Board
 import           PieceRules
+import           Options
 
 data Model = Model
     { windowDims :: !(V2 Int)
     , board :: !Board
     , mousePos :: !(V2 Int)
     , gameState :: !GameState
+    , options :: Options
     } deriving (Show)
 
 data GameState = GameState
@@ -58,12 +60,13 @@ checkType Check{fromPos = (fromFile, fromRank), toPos = (toFile, toRank)}
     | ord fromFile - ord toFile == fromRank - toRank = LongDiagonal -- TO DO differentiate between long and short diagonal
     | otherwise = KnightCheck
 
-initialModel :: V2 Int -> Model
-initialModel initialWindowDims = Model
+initialModel :: Options -> V2 Int -> Model
+initialModel options initialWindowDims = Model
     { windowDims = initialWindowDims
     , board = initialBoard initialWindowDims
     , mousePos = pure 0
     , gameState = initialGameState
+    , options
     }
 
 resize :: Model -> V2 Int -> Model
