@@ -32,8 +32,8 @@ data Action = DoNothing
             | Drop (V2 Int)
 
 -- experimental
-autoFlip :: Bool
-autoFlip = False
+hotSeatMode :: Bool
+hotSeatMode = False
 
 backgroundColor :: Color
 backgroundColor =
@@ -58,7 +58,7 @@ update model (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.no
 update model (Drop globalPoint) =
   let
     (model', isLegal) = dropPiece model globalPoint
-    model'' = if autoFlip && isLegal then fst $ update model' FlipBoard else model'
+    model'' = if hotSeatMode && isLegal then fst $ update model' FlipBoard else model'
   in
     (model'', Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
