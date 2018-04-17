@@ -14,6 +14,7 @@ dependencies:
 executables:
   kriegspiel:
     main: Main.hs
+ghc-options: -Wall -Werror
 source-dirs:
 - src
 data-files:

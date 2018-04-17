@@ -27,7 +27,6 @@ import           View
 
 data Action = DoNothing
             | ResizeWindow (V2 Int)
-            | ToggleBoardColor
             | FlipBoard
             | MoveMouse (V2 Int)
             | StartDrag (V2 Int)
@@ -103,7 +102,7 @@ runGame options = do
         { SDL.windowIsResizable = True
         , SDL.windowDimensions = initialWindowDims
         , SDL.windowIsFullscreen = False
-        , SDL.windowTitle = "Kriegspiel"
+        , SDL.windowTitle = show $ gameVariant options
         }
 
     imageDir <- (</> "images") <$> getCurrentDirectory

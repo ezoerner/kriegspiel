@@ -46,6 +46,7 @@ pawnTries Board{positions} thisPlayer =
         && player piece == thisPlayer
     pawnAssocs = filter isPawnForThisPlayer $ M.assocs positions
     isTry (_, pos:_) = (player <$> positions M.!? pos) == Just (otherPlayer thisPlayer)
+    isTry _ = False -- TODO fix this by considering all the tries not just first one
     triesAt (fromPos@(file, rank), _) =
         filter isTry [
                        (fromPos, [(succ file, rank + dir)])

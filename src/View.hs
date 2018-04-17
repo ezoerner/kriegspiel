@@ -2,8 +2,7 @@
 
 module View where
 
-import           Data.Maybe (fromMaybe, isJust)
-import           Data.Char (toLower, ord, chr)
+import           Data.Char (toLower)
 import qualified Data.Map.Strict as M
 import           Helm
 import           Helm.Engine (Engine)
@@ -87,16 +86,17 @@ piecesForm Model
         move (toBoardLocal (fromIntegral <$> mousePos) bbox - imageDims / 2) $ mkForm piece
     pieceImage boardPosition (Just piece)  =
       move (toOffset boardPosition orient ssize) $ mkForm piece
+    pieceImage _ Nothing = blank -- for completion
 
     pieces = [((file, rank), maybePiece) |
       file <- ['a'..'h'],
       rank <- [1..8],
       let maybePiece = positions M.!? (file, rank),
-      isJust maybePiece,
       case (gameVariant, maybePiece, next) of
         (Chess, _, _) -> True
         (Kriegspiel, Just piece, Right color) -> color == player piece
-        (_, _, Left _) -> True]
+        (_, Just _, Left _) -> True
+        (_, Nothing, _) -> False]
     sortedPieces = sortOn (fmap inMotion . snd) pieces
     imageCollage = collage $ map (uncurry pieceImage) sortedPieces
   in

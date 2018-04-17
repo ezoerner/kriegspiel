@@ -4,16 +4,11 @@ module Board where
 
 import           Control.Applicative (pure)
 import           Control.Monad (guard)
-import           Data.Char (toLower, ord, chr)
+import           Data.Char (ord, chr)
 import qualified Data.Map.Strict as M
-import           Data.List (map, sortOn)
 import           Data.Maybe (fromMaybe, isJust)
 import           Data.Maybe.HT (toMaybe)
 import           Linear.V2 (V2(V2))
-
-import           Helm.Graphics2D
-import           Helm.Asset
-import           Helm.Engine (Engine)
 
 data Player = White | Black
     deriving (Eq, Show)
