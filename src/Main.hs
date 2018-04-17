@@ -79,7 +79,7 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets _ Model{board = board@Board{..}, ..} =
+view assets _ model@Model{board = board@Board{..}, ..} =
   let
     showBoardColor = fmap toLower (show Brown)
     lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
@@ -90,7 +90,7 @@ view assets _ Model{board = board@Board{..}, ..} =
         [ background (fromIntegral <$> windowDims)
         , overlay overlayColor bbox gameState
         , move border $ boardForm lightSquare darkSquare board
-        , move border $ piecesForm board assets mousePos
+        , move border $ piecesForm model assets mousePos
         ]
 
 main :: IO ()

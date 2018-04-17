@@ -17,7 +17,7 @@ data Model = Model
     , board :: !Board
     , mousePos :: !(V2 Int)
     , gameState :: !GameState
-    , options :: Options
+    , options :: !Options
     } deriving (Show)
 
 data GameState = GameState
@@ -26,7 +26,7 @@ data GameState = GameState
     , pawnTries :: !PawnTries
     , pieceGone :: !(Maybe Piece)
     , check :: !(Maybe Check)
-    , scores :: Scores
+    , scores :: !Scores
     } deriving (Show)
 
 initialGameState :: GameState

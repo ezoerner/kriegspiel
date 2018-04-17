@@ -111,52 +111,6 @@ calcBoardBBox windowSize =
   in
     BSquare { width = fromIntegral $ calcBoardSize windowSize, topLeft = border}
 
-boardForm :: Engine e => Image e -> Image e -> Board -> Form e
-boardForm lightSquare darkSquare Board{bbox, orient} =
-  let
-    ssize = squareSize bbox
-    imageDims = V2 ssize ssize
-    pivot White = 0
-    pivot Black = 1
-    chooseImage x y = if floor (x + y) `mod` (2 :: Integer) == pivot orient
-                      then lightSquare
-                      else darkSquare
-    mkForm x y = image imageDims $ chooseImage x y
-  in
-    toForm $ collage [move (V2 hOff vOff) $ mkForm x y
-                        | x <- [0..7]
-                        , y <- [0..7]
-                        , let hOff = x * ssize
-                        , let vOff = y * ssize
-                        ]
-
-piecesForm :: Engine e => Board -> M.Map String (Image e) -> V2 Int -> Form e
-piecesForm Board{positions, bbox, orient} assets mousePos =
-  let
-    showPlayer player = toLower (head $ show player)
-    showPieceType pieceType = toLower <$> show pieceType
-    playerName piece = showPlayer $ player piece
-    pieceName piece = showPieceType $ pieceType piece
-    chooseImage piece = assets M.! (playerName piece : "_" ++ pieceName piece)
-    ssize = squareSize bbox
-    imageDims = pure ssize
-    mkForm piece = image imageDims $ chooseImage piece
-
-    pieceImage _ (Just piece@Piece{inMotion = True}) =
-        move (toBoardLocal (fromIntegral <$> mousePos) bbox - imageDims / 2) $ mkForm piece
-    pieceImage boardPosition (Just piece)  =
-      move (toOffset boardPosition orient ssize) $ mkForm piece
-
-    pieces = [((file, rank), maybePiece) |
-      file <- ['a'..'h'],
-      rank <- [1..8],
-      let maybePiece = positions M.!? (file, rank),
-      isJust maybePiece]
-    sortedPieces = sortOn (fmap inMotion . snd) pieces
-    imageCollage = collage $ map (uncurry pieceImage) sortedPieces
-  in
-    toForm imageCollage
-
 findPositionWithPiece :: Board -> V2 Double -> Player -> Maybe BoardPosition
 findPositionWithPiece Board{positions, bbox, orient} point playerTurn =
   let
