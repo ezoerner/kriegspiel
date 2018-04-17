@@ -6,7 +6,7 @@ import           Chess (PieceType(..))
 import qualified Data.Map.Strict as M
 import           Data.Maybe (isNothing, fromMaybe)
 
-import Board
+import BoardView
 
 
 isLegalMove :: BoardPosition -> BoardPosition -> Board -> Bool
@@ -36,8 +36,7 @@ pieceRule _ _ _ _ = False
 isVacant :: Board -> BoardPosition -> Bool
 isVacant Board{positions} pos = isNothing $ positions M.!? pos
 
--- Map of fromPos, [toPos]
-type PawnTries = M.Map BoardPosition [BoardPosition]
+type PawnTries = [BoardPosition]
 
 pawnTries :: Board -> Player -> PawnTries
 pawnTries Board{positions} thisPlayer =

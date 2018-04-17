@@ -2,6 +2,7 @@
 
 module Model where
 
+import           Chess
 import           Data.Char (ord)
 import qualified Data.Map.Strict as M
 import           Data.Maybe (isJust)
@@ -13,25 +14,32 @@ import           PieceRules
 import           Options
 
 data Model = Model
-    { windowDims :: !(V2 Int)
-    , board :: !Board
-    , mousePos :: !(V2 Int)
-    , gameState :: !GameState
+    { gameState :: !GameState
     , options :: !Options
-    } deriving (Show)
-
-data GameState = GameState
-    { next :: !(Either GameOver Player)
-    , prev :: !MoveAttempt
+    , windowDims :: !(V2 Int)
+    , mousePos :: !(V2 Int)
+    , boardView :: BoardView
+    , lastMoveAttempt :: !MoveAttempt
     , pawnTries :: !PawnTries
-    , pieceGone :: !(Maybe Piece)
     , check :: !(Maybe Check)
+    , gameOver :: !(Maybe GameOver)
     , scores :: !Scores
-    } deriving (Show)
+    }
+    deriving (Show)
 
-initialGameState :: GameState
-initialGameState = 
-    GameState (Right White) Successful M.empty Nothing Nothing (Scores 0 0)
+ initialModel :: Options -> V2 Int -> Model
+initialModel options windowDims = Model
+    { gameState = newGame
+    , options
+    , windowDims
+    , mousePos = pure 0
+    , boardView = initialBoardView windowDims
+    , lastMoveAttempt = Successful
+    , pawnTries = empty
+    , check = Nothing
+    , gameOver = Nothing
+    , scores = Scores 0 0
+    }
 
 data MoveAttempt = Successful | Illegal | Impossible
     deriving (Show)
@@ -60,40 +68,33 @@ checkType Check{fromPos = (fromFile, fromRank), toPos = (toFile, toRank)}
     | ord fromFile - ord toFile == fromRank - toRank = LongDiagonal -- TO DO differentiate between long and short diagonal
     | otherwise = KnightCheck
 
-initialModel :: Options -> V2 Int -> Model
-initialModel options initialWindowDims = Model
-    { windowDims = initialWindowDims
-    , board = initialBoard initialWindowDims
-    , mousePos = pure 0
-    , gameState = initialGameState
-    , options
-    }
-
 resize :: Model -> V2 Int -> Model
 resize model@Model{board} windowDims =
   let
     bbox = calcBoardBBox windowDims
   in
-    model {windowDims, board=board{bbox}}
+    model {windowDims, boardView=boardView{bbox}}
+
+isGameOver :: GameState -> Bool
+isGameOver = (&&) . not . isDraw <*> not . isCheckmate
 
 startDragPiece :: Model -> V2 Int -> Model
 startDragPiece model@Model
-    { board = board@Board{bbox, positions}
-    , gameState = GameState{next = Right playerTurn}
+    { boardView = boardView@BoardView{bbox}
+    , gameState
     } globalPoint =
   let
+    board = board gameState
+    currentPlayer = currentPlayer gameState
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) bbox
-    maybeBoardPos = findPositionWithPiece board localPoint playerTurn
-    putInDrag p = p {inMotion = True}
-    newBoard boardPos = board
-        { posInMotion = Just boardPos
-        , positions = M.adjust putInDrag boardPos positions
-        }
+    maybeBoardPos = findPositionWithPiece board localPoint currentPlayer
+    newBoardView boardPos = boardView{posInMotion = Just boardPos}
   in
-    case maybeBoardPos of
-      Nothing -> model
-      Just boardPos -> model{board = newBoard boardPos}
-startDragPiece model _ = model  -- Game Over
+    if isGameOver gameState
+        then model
+        else case maybeBoardPos of
+            Nothing -> model
+            Just boardPos -> model{boardView = newBoardView boardPos}
 
 dropPiece :: Model -> V2 Int -> (Model, Bool)
 dropPiece model@Model
