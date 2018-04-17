@@ -1,6 +1,13 @@
 name: kriegspiel
 version: '1.0'
-license: OtherLicense
+license: BSD3
+author:
+  - Eric Zoerner <eric.zoerner@gmail.com>
+maintainer:
+  - Eric Zoerner <eric.zoerner@gmail.com>
+copyright:
+  - (c) 2018 Eric Zoerner
+category: Game
 dependencies:
 - containers
 - directory
