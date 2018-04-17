@@ -2,6 +2,7 @@
 
 module Board where
 
+import           Chess (PieceType(..))
 import           Control.Applicative (pure)
 import           Control.Monad (guard)
 import           Data.Char (ord, chr)
@@ -25,9 +26,6 @@ data BoundingSquare = BSquare
     { width :: !Double
     , topLeft :: !(V2 Double)
     } deriving (Show)
-  
-data PieceType = Pawn | Bishop | Knight | Rook | Queen | King
-    deriving (Eq, Show)
 
 data BoardColor = Brown | Gray
     deriving (Eq, Show)

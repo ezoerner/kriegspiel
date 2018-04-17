@@ -2,6 +2,7 @@
 
 module PieceRules where
 
+import           Chess (PieceType(..))
 import qualified Data.Map.Strict as M
 import           Data.Maybe (isNothing, fromMaybe)
 
