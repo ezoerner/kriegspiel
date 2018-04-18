@@ -9,7 +9,7 @@ import           Data.Maybe (isJust)
 import           Data.Maybe.HT (toMaybe)
 import           Linear.V2 (V2)
 
-import           Board
+import           BoardView
 import           PieceRules
 import           Options
 
@@ -55,7 +55,7 @@ data Check = Check
 data CheckType = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
     deriving (Show)
 
-data GameOver = Checkmate { winner :: !Player } | Draw DrawReason
+data GameOver = Checkmate { winner :: !Color } | Draw DrawReason
     deriving (Show)
 
 data DrawReason = Stalemate | Repetition | InsufficientForce | FiftyMove
@@ -98,19 +98,23 @@ startDragPiece model@Model
 
 dropPiece :: Model -> V2 Int -> (Model, Bool)
 dropPiece model@Model
-    { board = board@Board{bbox, orient, posInMotion = Just dragPos}
-    , gameState = gameState@GameState{next = Right thisPlayer}
+    { boardView = boardView@BoardView{bbox, orient, posInMotion = Just dragPos}
+    , gameState
     }
     globalPoint =
   let
+    thisPlayer = currentPlayer gameState
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) bbox
-    maybeTargetPos = toBoardPosition bbox localPoint orient >>=
-        \toPos -> isLegalMove dragPos toPos board `toMaybe` toPos
-    isLegal = isJust maybeTargetPos
-    nextPlayer = if isLegal then otherPlayer thisPlayer else thisPlayer
+    maybeNext = do
+        toPos <- toBoardPosition bbox localPoint orient
+        let targetCoordMove = toCoordMove dragPos toPos
+        nextGameState <- move gameState targetCoordMove
+        return (toPos, nextGameState)
   in
-    (model { gameState = gameState{next = Right nextPlayer}
-           , board = dropFromTo board dragPos maybeTargetPos
-           }
-    , isLegal)
-dropPiece model _ = (model, False) -- Game Over or Not in Motion
+    case maybeNext of
+        Just (toPos, nextGameState) ->
+            (model{ gameState = nextGameState
+                  , boardView = boardView{posInMotion = Nothing}
+                  }, True)
+        Nothing -> (model, False)
+dropPiece model _ = (model, False) -- Nothing in motion

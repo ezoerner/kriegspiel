@@ -57,32 +57,15 @@ calcBoardBBox windowSize =
   in
     BSquare { width = fromIntegral $ calcBoardSize windowSize, topLeft = border}
 
-findPositionWithPiece :: Board -> V2 Double -> Player -> Maybe BoardPosition
-findPositionWithPiece Board{positions, bbox, orient} point playerTurn =
+findPositionWithPiece :: Board -> BoardView -> V2 Double -> Color -> Maybe BoardPosition
+findPositionWithPiece board BoardView{bbox, orient} point playerTurn =
   let
     maybeBoardPos = toBoardPosition bbox point orient
   in
     maybeBoardPos >>= \testPos ->
-        positions M.!? testPos >>= \piece ->
-        guard (player piece == playerTurn) >>
+        board `pieceAt` toCoord testPos >>= \(Piece color _) ->
+        guard (color == playerTurn) >>
         return testPos
-
--- result is either a legal move (Just toPos) or an aborted drag (Nothing)
-dropFromTo :: Board -> BoardPosition -> Maybe BoardPosition -> Board
-dropFromTo board@Board{positions} fromPos maybeToPos =
-  let
-    legalMove = isJust maybeToPos
-    piece = positions M.! fromPos
-    willHaveMoved = legalMove || hasMoved piece
-    destPos = fromMaybe fromPos maybeToPos
-    positions' = M.insert
-                    destPos
-                    piece{inMotion = False, hasMoved = willHaveMoved}
-                    positions
-  in
-    if legalMove
-    then board{positions = M.delete fromPos positions', posInMotion = Nothing}
-    else board{positions = positions', posInMotion = Nothing}
 
 toOffset :: BoardPosition -> Player -> Double -> V2 Double
 toOffset (file, rank) White ssize =
@@ -90,7 +73,7 @@ toOffset (file, rank) White ssize =
 toOffset (file, rank) Black ssize =
     (fromIntegral <$> V2 (ord file - ord 'a') (rank - 1)) * pure ssize
 
-toBoardPosition :: BoundingSquare -> V2 Double -> Player -> Maybe BoardPosition
+toBoardPosition :: BoundingSquare -> V2 Double -> Color -> Maybe BoardPosition
 toBoardPosition bbox (V2 x y) playerOrient = let
     ssize = squareSize bbox
     tryPos White = (chr $ ord 'a' + floor (x / ssize), 8 - floor (y / ssize))
@@ -104,6 +87,9 @@ squareSize bbox = width bbox / 8
 
 toBoardLocal :: V2 Double -> BoundingSquare -> V2 Double
 toBoardLocal globalV2 bbox = globalV2 - topLeft bbox
+
+toCoord :: BoardPosition -> String
+toCoord (file, rank) = file : show rank
 
 -- Private functions
 

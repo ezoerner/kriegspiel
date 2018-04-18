@@ -20,7 +20,7 @@ import qualified Helm.Mouse as Mouse
 import qualified Helm.Sub as Sub
 import qualified Helm.Window as Window
 
-import           Board
+import           BoardView
 import           Model
 import           Options
 import           View
