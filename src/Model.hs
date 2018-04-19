@@ -82,5 +82,5 @@ dropPiece model@Model
             (model{ gameState = nextGameState
                   , boardView = boardView{posInMotion = Nothing}
                   }, True)
-        Nothing -> (model, False)
+        Nothing -> (model{boardView = boardView{posInMotion = Nothing}}, False)
 dropPiece model _ = (model, False) -- Nothing in motion
