@@ -3,14 +3,10 @@
 module Model where
 
 import           Chess
-import           Data.Char (ord)
-import qualified Data.Map.Strict as M
-import           Data.Maybe (isJust)
-import           Data.Maybe.HT (toMaybe)
 import           Linear.V2 (V2)
 
 import           BoardView
-import           PieceRules
+import           ChessUtils
 import           Options
 
 data Model = Model
@@ -20,14 +16,14 @@ data Model = Model
     , mousePos :: !(V2 Int)
     , boardView :: BoardView
     , lastMoveAttempt :: !MoveAttempt
-    , pawnTries :: !PawnTries
-    , check :: !(Maybe Check)
-    , gameOver :: !(Maybe GameOver)
+    , pawnTries :: ![BoardPosition]
+    , maybeCheck :: !(Maybe Check)
+    , maybeGameOver :: !(Maybe GameOver)
     , scores :: !Scores
     }
     deriving (Show)
 
- initialModel :: Options -> V2 Int -> Model
+initialModel :: Options -> V2 Int -> Model
 initialModel options windowDims = Model
     { gameState = newGame
     , options
@@ -35,48 +31,18 @@ initialModel options windowDims = Model
     , mousePos = pure 0
     , boardView = initialBoardView windowDims
     , lastMoveAttempt = Successful
-    , pawnTries = empty
-    , check = Nothing
-    , gameOver = Nothing
+    , pawnTries = []
+    , maybeCheck = Nothing
+    , maybeGameOver = Nothing
     , scores = Scores 0 0
     }
 
-data MoveAttempt = Successful | Illegal | Impossible
-    deriving (Show)
-
-data Scores = Scores { white :: Integer, black :: Integer }
-    deriving (Show)
-
-data Check = Check
-    { fromPos :: !BoardPosition
-    , toPos :: !BoardPosition
-    } deriving (Show)
-
-data CheckType = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
-    deriving (Show)
-
-data GameOver = Checkmate { winner :: !Color } | Draw DrawReason
-    deriving (Show)
-
-data DrawReason = Stalemate | Repetition | InsufficientForce | FiftyMove
-    deriving (Show)
-
-checkType :: Check -> CheckType
-checkType Check{fromPos = (fromFile, fromRank), toPos = (toFile, toRank)}
-    | fromFile == toFile = Vertical
-    | fromRank == toRank = Horizontal
-    | ord fromFile - ord toFile == fromRank - toRank = LongDiagonal -- TO DO differentiate between long and short diagonal
-    | otherwise = KnightCheck
-
 resize :: Model -> V2 Int -> Model
-resize model@Model{board} windowDims =
+resize model@Model{boardView} windowDims =
   let
     bbox = calcBoardBBox windowDims
   in
     model {windowDims, boardView=boardView{bbox}}
-
-isGameOver :: GameState -> Bool
-isGameOver = (&&) . not . isDraw <*> not . isCheckmate
 
 startDragPiece :: Model -> V2 Int -> Model
 startDragPiece model@Model
@@ -84,10 +50,12 @@ startDragPiece model@Model
     , gameState
     } globalPoint =
   let
-    board = board gameState
-    currentPlayer = currentPlayer gameState
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) bbox
-    maybeBoardPos = findPositionWithPiece board localPoint currentPlayer
+    maybeBoardPos = findPositionWithPiece
+        (board gameState)
+        boardView
+        localPoint
+        (currentPlayer gameState)
     newBoardView boardPos = boardView{posInMotion = Just boardPos}
   in
     if isGameOver gameState
@@ -103,16 +71,14 @@ dropPiece model@Model
     }
     globalPoint =
   let
-    thisPlayer = currentPlayer gameState
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) bbox
     maybeNext = do
         toPos <- toBoardPosition bbox localPoint orient
         let targetCoordMove = toCoordMove dragPos toPos
-        nextGameState <- move gameState targetCoordMove
-        return (toPos, nextGameState)
+        move gameState targetCoordMove
   in
     case maybeNext of
-        Just (toPos, nextGameState) ->
+        Just nextGameState ->
             (model{ gameState = nextGameState
                   , boardView = boardView{posInMotion = Nothing}
                   }, True)

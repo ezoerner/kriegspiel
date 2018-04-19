@@ -2,15 +2,15 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
-import           Data.Char (toLower)
 import qualified Data.Map.Strict as M
 import           Linear.V2 (V2(V2))
 import           Options.Applicative
 import           System.FilePath ((</>))
 import           System.Directory
 
+import           Chess (Color(..))
 import           Helm
-import           Helm.Color
+import           Helm.Color as HelmColor
 import qualified Helm.Cmd as Cmd
 import qualified Helm.Engine.SDL as SDL
 import           Helm.Engine.SDL (SDLEngine)
@@ -23,7 +23,6 @@ import qualified Helm.Window as Window
 import           BoardView
 import           Model
 import           Options
-import           View
 
 data Action = DoNothing
             | ResizeWindow (V2 Int)
@@ -32,7 +31,7 @@ data Action = DoNothing
             | StartDrag (V2 Int)
             | Drop (V2 Int)
 
-backgroundColor :: Color
+backgroundColor :: HelmColor.Color
 backgroundColor =
     rgb (fromRational 252/255) (fromRational 244/255) (fromRational 220/255)
 
@@ -47,10 +46,10 @@ initial options = (initialModel options initialWindowDims, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
-update model@Model{board = board@Board{orient = White}} FlipBoard
-    = (model{board = board{orient = Black}}, Cmd.none)
-update model@Model{board = board@Board{orient = Black}} FlipBoard
-    = (model{board = board{orient = White}}, Cmd.none)
+update model@Model{boardView = boardView@BoardView{orient = White}} FlipBoard
+    = (model{boardView = boardView{orient = Black}}, Cmd.none)
+update model@Model{boardView = boardView@BoardView{orient = Black}} FlipBoard
+    = (model{boardView = boardView{orient = White}}, Cmd.none)
 update model (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
 update model@Model{options = Options{hotSeat}} (Drop globalPoint) =
   let
@@ -78,18 +77,17 @@ subscriptions = Sub.batch
 
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets _ model@Model{board = board@Board{..}, ..} =
+view assets _ Model{..} =
   let
-    showBoardColor = fmap toLower (show Brown)
-    lightSquare = assets M.! ("square_" ++ showBoardColor ++ "_light")
-    darkSquare = assets M.! ("square_" ++ showBoardColor ++ "_dark")
+    lightSquare = assets M.! ("square_brown_light")
+    darkSquare = assets M.! ("square_brown_dark")
     overlayColor = rgb 0 0 0
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
-        , overlay overlayColor bbox gameState
-        , move border $ boardForm lightSquare darkSquare board
-        , move border $ piecesForm model assets mousePos
+        , overlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver
+        , move border $ boardForm lightSquare darkSquare boardView
+        , move border $ piecesForm gameState options boardView assets mousePos
         ]
 
 main :: IO ()
