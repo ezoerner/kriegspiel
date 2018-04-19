@@ -8,7 +8,7 @@ type Rank = Int
 type BoardPosition = (File, Rank)
 
 isGameOver :: GameState -> Bool
-isGameOver = (&&) . not . isDraw <*> not . isCheckmate
+isGameOver = (||) . isDraw <*> isCheckmate
 
 data MoveAttempt = Successful | Illegal | Impossible
     deriving (Show)

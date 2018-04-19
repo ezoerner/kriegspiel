@@ -79,8 +79,8 @@ subscriptions = Sub.batch
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
 view assets _ Model{..} =
   let
-    lightSquare = assets M.! ("square_brown_light")
-    darkSquare = assets M.! ("square_brown_dark")
+    lightSquare = assets M.! "square_brown_light"
+    darkSquare = assets M.! "square_brown_dark"
     overlayColor = rgb 0 0 0
   in
     Graphics2D $ collage
