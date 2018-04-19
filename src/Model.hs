@@ -11,10 +11,11 @@ import           Options
 
 data Model = Model
     { gameState :: !GameState
+    , playerState :: !PlayerState
     , options :: !Options
     , windowDims :: !(V2 Int)
     , mousePos :: !(V2 Int)
-    , boardView :: BoardView
+    , boardView :: !BoardView
     , lastMoveAttempt :: !MoveAttempt
     , pawnTries :: ![BoardPosition]
     , maybeCheck :: !(Maybe Check)
@@ -26,6 +27,7 @@ data Model = Model
 initialModel :: Options -> V2 Int -> Model
 initialModel options windowDims = Model
     { gameState = newGame
+    , playerState = Playing
     , options
     , windowDims
     , mousePos = pure 0
@@ -43,6 +45,13 @@ resize model@Model{boardView} windowDims =
     bbox = calcBoardBBox windowDims
   in
     model {windowDims, boardView=boardView{bbox}}
+
+flipBoard :: Model -> Model
+flipBoard model@Model{boardView = boardView@BoardView{orient = Black}}
+    = model{boardView = boardView{orient = White}}
+flipBoard model@Model{boardView = boardView@BoardView{orient = White}}
+    = model{boardView = boardView{orient = Black}}
+
 
 startDragPiece :: Model -> V2 Int -> Model
 startDragPiece model@Model

@@ -35,6 +35,9 @@ data BoardView = BoardView
     }
     deriving (Show)
 
+data PlayerState = Playing | HotSeatWait | HotSeatBlank
+    deriving (Show, Eq)
+
 initialBoardView :: V2 Int -> BoardView
 initialBoardView windowDims =
     BoardView
@@ -152,9 +155,10 @@ boardForm lightSquare darkSquare BoardView{bbox, orient} =
                                 , let vOff = y * ssize
                                 ]
 
-piecesForm :: Engine e => GameState -> Options -> BoardView ->
+piecesForm :: Engine e => PlayerState -> GameState -> Options -> BoardView ->
     M.Map String (Image e) -> V2 Int -> HGfx.Form e
-piecesForm gameState Options{gameVariant} BoardView{bbox, orient, posInMotion} assets mousePos =
+piecesForm HotSeatBlank _ _ _ _ _ = HGfx.blank
+piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, posInMotion} assets mousePos =
   let
     showColor color = toLower (head $ show color)
     showPieceType pieceType = toLower <$> show pieceType
@@ -176,9 +180,13 @@ piecesForm gameState Options{gameVariant} BoardView{bbox, orient, posInMotion} a
                 isJust maybePiece,
                 -- the undefined here is filtered out by above guard
                 let piece@(Piece color _) = fromMaybe undefined maybePiece,
-                gameVariant == Chess ||
-                    isGameOver gameState ||
-                    currentPlayer gameState == color]
+                case (isGameOver gameState, playerState, gameVariant, color) of
+                    (True, _ , _, _) -> True
+                    (_, _, Chess, _) -> True
+                    (_, HotSeatWait, Kriegspiel, White) -> currentPlayer gameState == Black
+                    (_, HotSeatWait, Kriegspiel, Black) -> currentPlayer gameState == White
+                    (_, Playing, Kriegspiel, _) -> currentPlayer gameState == color
+                    _ -> True]
     sortedPieces = sortOn ((== posInMotion) . Just . fst) pieces
     imageCollage = HGfx.collage $ map (uncurry pieceImage) sortedPieces
   in

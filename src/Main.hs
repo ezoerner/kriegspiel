@@ -8,7 +8,7 @@ import           Options.Applicative
 import           System.FilePath ((</>))
 import           System.Directory
 
-import           Chess (Color(..))
+import           Chess hiding (move)
 import           Helm
 import           Helm.Color as HelmColor
 import qualified Helm.Cmd as Cmd
@@ -30,6 +30,7 @@ data Action = DoNothing
             | MoveMouse (V2 Int)
             | StartDrag (V2 Int)
             | Drop (V2 Int)
+            | HotSeatNext
 
 backgroundColor :: HelmColor.Color
 backgroundColor =
@@ -46,15 +47,21 @@ initial options = (initialModel options initialWindowDims, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
-update model@Model{boardView = boardView@BoardView{orient = White}} FlipBoard
-    = (model{boardView = boardView{orient = Black}}, Cmd.none)
-update model@Model{boardView = boardView@BoardView{orient = Black}} FlipBoard
-    = (model{boardView = boardView{orient = White}}, Cmd.none)
-update model (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
-update model@Model{options = Options{hotSeat}} (Drop globalPoint) =
+update model@Model{playerState = Playing} FlipBoard = (flipBoard model, Cmd.none)
+update model@Model{playerState = Playing} HotSeatNext = (model, Cmd.none)
+update model@Model{playerState = HotSeatWait} HotSeatNext = (model{playerState = HotSeatBlank}, Cmd.none)
+update model@Model{playerState = HotSeatBlank} HotSeatNext = (model{playerState = Playing}, Cmd.none)
+update model@Model{playerState = Playing} (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
+update model@Model{playerState = Playing, options = Options{gameVariant, hotSeat}, boardView} (Drop globalPoint) =
   let
     (model', isLegal) = dropPiece model globalPoint
-    model'' = if hotSeat && isLegal then fst $ update model' FlipBoard else model'
+    gameState' = gameState model'
+    nextState = case gameVariant of
+        Kriegspiel -> HotSeatWait
+        Chess -> Playing
+    model'' = if hotSeat && isLegal
+              then model'{playerState = nextState, boardView=boardView{orient=currentPlayer gameState'}}
+              else model' --fst $ update model' FlipBoard else model'
   in
     (model'', Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
@@ -64,8 +71,9 @@ subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
     [ Window.resizes ResizeWindow
     , Keyboard.presses $ \case
-        Keyboard.FKey -> FlipBoard
-        _             -> DoNothing
+        Keyboard.FKey       -> FlipBoard
+        Keyboard.SpaceKey   -> HotSeatNext
+        _                   -> DoNothing
     , Mouse.downs $ \button loc -> case button of
         Mouse.LeftButton -> StartDrag loc
         _                -> DoNothing
@@ -87,7 +95,7 @@ view assets _ Model{..} =
         [ background (fromIntegral <$> windowDims)
         , overlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver
         , move border $ boardForm lightSquare darkSquare boardView
-        , move border $ piecesForm gameState options boardView assets mousePos
+        , move border $ piecesForm playerState gameState options boardView assets mousePos
         ]
 
 main :: IO ()
