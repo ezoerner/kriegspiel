@@ -81,15 +81,31 @@ dropPiece model@Model
     globalPoint =
   let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) bbox
-    maybeNext = do
-        toPos <- toBoardPosition bbox localPoint orient
-        let targetCoordMove = toCoordMove dragPos toPos
-        move gameState targetCoordMove
+    maybeToPos = toBoardPosition bbox localPoint orient
+    maybeTargetCoordMove = toCoordMove dragPos <$> maybeToPos
+    maybeNext = maybeTargetCoordMove >>= move gameState
   in
     case maybeNext of
         Just nextGameState ->
             (model{ gameState = nextGameState
                   , boardView = boardView{posInMotion = Nothing}
                   }, True)
-        Nothing -> (model{boardView = boardView{posInMotion = Nothing}}, False)
+        Nothing -> 
+          let maybeNext' = do
+                let promoteTo = "Q"
+                targetCoordMove <- maybeTargetCoordMove
+                if canPromote gameState targetCoordMove
+                    then move gameState (targetCoordMove ++ "=" ++ promoteTo)
+                    else Nothing
+          in
+            case maybeNext' of
+                Just nextGameState ->
+                    (model{ gameState = nextGameState
+                          , boardView = boardView{posInMotion = Nothing}
+                          }, True)
+                Nothing ->
+                    (model{boardView = boardView{posInMotion = Nothing}}, False)
 dropPiece model _ = (model, False) -- Nothing in motion
+
+canPromote :: GameState -> String -> Bool
+canPromote gameState coordMove = isLegalMove gameState (coordMove ++ "=Q")
