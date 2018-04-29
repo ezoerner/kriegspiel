@@ -9,7 +9,7 @@ import           Data.Array as A
 import           Data.Char (ord, chr, toLower)
 import           Data.List (map, sortOn, foldl')
 import qualified Data.Map.Strict as M
-import           Data.Maybe (fromMaybe, isJust)
+import           Data.Maybe (fromMaybe, isJust, fromJust)
 import           Data.Maybe.HT (toMaybe)
 import           Helm
 import qualified Helm.Color as HelmColor
@@ -35,8 +35,12 @@ data BoardView = BoardView
     }
     deriving (Show)
 
-data PlayerState = Playing | HotSeatWait | HotSeatBlank | PromotionPrompt
-    deriving (Show, Eq)
+data PlayerState =
+    Playing |
+    HotSeatWait |
+    HotSeatBlank |
+    PromotionPrompt BoardPosition BoardPosition
+  deriving (Show, Eq)
 
 initialBoardView :: V2 Int -> BoardView
 initialBoardView windowDims =
@@ -117,7 +121,7 @@ sideBarTexts helmColor moveAttempt maybeCheck playerState =
 promptPromoteText :: HelmColor.Color -> PlayerState -> [Text]
 promptPromoteText helmColor playerState =
   let
-    showPlayerState PromotionPrompt =
+    showPlayerState (PromotionPrompt _ _) =
       [ "Promote Pawn:"
       , "Press Q for Queen"
       , "B for Bishop"
@@ -238,6 +242,8 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
     mkForm piece = HGfx.image imageDims $ chooseImage piece
 
     pieceImage boardPosition piece
+        | (PromotionPrompt fromPos toPos) <- playerState, boardPosition == fromPos =
+            HGfx.move (toOffset toPos orient ssize) $ mkForm piece
         | posInMotion == Just boardPosition =
             HGfx.move (toBoardLocal (fromIntegral <$> mousePos) bbox - imageDims / 2) $ mkForm piece
         | otherwise =
@@ -247,8 +253,7 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
                 (coords, square) <- assocs $ board gameState,
                 let maybePiece = squareToMaybe square,
                 isJust maybePiece,
-                -- the undefined here is filtered out by above guard
-                let piece@(Piece clr _) = fromMaybe undefined maybePiece,
+                let piece@(Piece clr _) = fromJust maybePiece,
                 case (isGameOver gameState, playerState, gameVariant, clr) of
                     (True, _ , _, _) -> True
                     (_, _, Chess, _) -> True

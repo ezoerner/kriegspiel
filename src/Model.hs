@@ -3,7 +3,7 @@
 module Model where
 
 import           Chess
-import           Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe, fromJust)
 import           Linear.V2 (V2)
 
 import           BoardView
@@ -94,9 +94,10 @@ dropPiece model@Model
         Nothing ->
           let maybeResult = maybeTargetCoordMove >>= \targetCoordMove ->
                 if canPromote gameState targetCoordMove
-                    then Just (model{ playerState = PromotionPrompt
-                                    , boardView = boardView{posInMotion = Nothing
-                                    }}, False)
+                    then Just (model
+                        { playerState = PromotionPrompt dragPos (fromJust maybeToPos)
+                        , boardView = boardView{posInMotion = Nothing
+                        }}, False)
                     else Nothing
           in
             fromMaybe (model{boardView = boardView{posInMotion = Nothing}}, False) maybeResult
