@@ -87,7 +87,7 @@ view assets _ Model{..} =
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
-        , overlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver playerState
+        , textOverlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver playerState
         , move border $ boardForm lightSquare darkSquare boardView
         , move border $ piecesForm playerState gameState options boardView assets mousePos
         ]

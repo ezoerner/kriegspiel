@@ -178,13 +178,26 @@ toMoveText
     currPlayer = currentPlayer gameState
     showToMove = case maybeGameOver of
         Nothing -> " To Move: " ++ show currPlayer
-        Just gameOver -> show gameOver -- TO DO improve this
+        Just gameOver -> show gameOver -- TODO improve this
   in
     height 30 $ color helmColor $ toText showToMove
 
-overlay :: HelmColor.Color -> BoardView -> GameState -> MoveAttempt -> Maybe Check -> Maybe GameOver -> PlayerState -> HGfx.Form SDLEngine
-overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
-    gameState moveAttempt maybeCheck maybeGameOver playerState =
+textOverlay :: HelmColor.Color
+            -> BoardView
+            -> GameState
+            -> MoveAttempt
+            -> Maybe Check
+            -> Maybe GameOver
+            -> PlayerState
+            -> HGfx.Form SDLEngine
+textOverlay
+    helmColor
+    BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
+    gameState
+    moveAttempt
+    maybeCheck
+    maybeGameOver
+    playerState =
   let
     topX = width / 2 + left
     topY = top / 2
@@ -216,7 +229,7 @@ overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
       firstTxt : txts -> HGfx.group
           ( topForm
           : toForm (V2 sidebarX sidebarY) firstTxt
-          : (uncurry sidebarOffsetForm <$>  tail (zip offsets txts))
+          : (uncurry sidebarOffsetForm <$>  zip (tail offsets) txts)
           )
 
 boardForm :: Engine e => Image e -> Image e -> BoardView -> HGfx.Form e
