@@ -61,7 +61,7 @@ update model@Model{playerState = Playing, options = Options{gameVariant, hotSeat
         Chess -> Playing
     model'' = if hotSeat && isLegal
               then model'{playerState = nextState, boardView=boardView{orient=currentPlayer gameState'}}
-              else model' --fst $ update model' FlipBoard else model'
+              else model'
   in
     (model'', Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
@@ -92,7 +92,7 @@ view assets _ Model{..} =
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
-        , overlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver
+        , overlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver playerState
         , move border $ boardForm lightSquare darkSquare boardView
         , move border $ piecesForm playerState gameState options boardView assets mousePos
         ]

@@ -9,7 +9,7 @@ import           Data.Array as A
 import           Data.Char (ord, chr, toLower)
 import           Data.List (map, sortOn, foldl')
 import qualified Data.Map.Strict as M
-import           Data.Maybe (fromMaybe, isJust)
+import           Data.Maybe (fromMaybe, isJust, catMaybes)
 import           Data.Maybe.HT (toMaybe)
 import           Helm
 import qualified Helm.Color as HelmColor
@@ -32,11 +32,10 @@ data BoardView = BoardView
     { bbox :: !BoundingSquare
     , orient :: !Color
     , posInMotion :: !(Maybe BoardPosition)
-    , textOverlays :: ![Text]
     }
     deriving (Show)
 
-data PlayerState = Playing | HotSeatWait | HotSeatBlank
+data PlayerState = Playing | HotSeatWait | HotSeatBlank | PromotionPrompt
     deriving (Show, Eq)
 
 initialBoardView :: V2 Int -> BoardView
@@ -45,7 +44,6 @@ initialBoardView windowDims =
     { bbox = calcBoardBBox windowDims
     , orient = White
     , posInMotion = Nothing
-    , textOverlays = []
     }
 
 border :: Num a => V2 a
@@ -109,38 +107,50 @@ findPawnTries gameState thisPlayer =
 sideBarTexts :: HelmColor.Color -- ^ the text color
              -> MoveAttempt
              -> Maybe Check
+             -> PlayerState
              -> [Text]
-sideBarTexts
-    helmColor
-    moveAttempt
-    maybeCheck =
-  checkText helmColor maybeCheck:
-  moveAttemptText helmColor moveAttempt :
-  []
+sideBarTexts helmColor moveAttempt maybeCheck playerState =
+  checkText helmColor maybeCheck ++
+  moveAttemptText helmColor moveAttempt ++
+  promptPromoteText helmColor playerState
+
+promptPromoteText :: HelmColor.Color -> PlayerState -> [Text]
+promptPromoteText helmColor playerState =
+  let
+    showPlayerState PromotionPrompt =
+      [ "Promote Pawn:"
+      , "Press Q for Queen"
+      , "B for Bishop"
+      , "R for Rook"
+      , "N for Knight"
+      ]
+    showPlayerState _ = []
+  in
+    height 20 . color helmColor . toText <$> showPlayerState playerState
 
 checkText :: HelmColor.Color
           -> Maybe Check
-          -> Text
+          -> [Text]
 checkText helmColor maybeCheck =
   let
-    showCheck (Just LongDiagonal) = "Check on long diagonal"
-    showCheck (Just ShortDiagonal) = "Check on short diagonal"
-    showCheck (Just KnightCheck) = "Check from a Knight"
-    showCheck (Just ckType) = show ckType ++ " check"
-    showCheck Nothing = ""
+    showCheck (Just LongDiagonal) = ["Check on long diagonal"]
+    showCheck (Just ShortDiagonal) = ["Check on short diagonal"]
+    showCheck (Just KnightCheck) = ["Check from a Knight"]
+    showCheck (Just ckType) = [show ckType ++ " check"]
+    showCheck Nothing = []
   in
-    height 30 $ color helmColor $ toText $ showCheck (checkType <$> maybeCheck)
+    height 30 . color helmColor . toText <$> showCheck (checkType <$> maybeCheck)
 
 moveAttemptText :: HelmColor.Color
                 -> MoveAttempt
-                -> Text
+                -> [Text]
 moveAttemptText helmColor moveAttempt =
   let
-    showLastMoveAttempt Successful = ""
-    showLastMoveAttempt Illegal = "No"
-    showLastMoveAttempt Impossible = "Hell, No!"
+    showLastMoveAttempt Successful = []
+    showLastMoveAttempt Illegal = ["No"]
+    showLastMoveAttempt Impossible = ["Hell, No!"]
   in
-    height 30 $ color helmColor $ toText $ showLastMoveAttempt moveAttempt
+    height 30 . color helmColor . toText <$> showLastMoveAttempt moveAttempt
 
 toMoveText :: HelmColor.Color
            -> GameState
@@ -158,39 +168,34 @@ toMoveText
   in
     height 30 $ color helmColor $ toText showToMove
 
-overlay :: HelmColor.Color -> BoardView -> GameState -> MoveAttempt -> Maybe Check -> Maybe GameOver -> HGfx.Form SDLEngine
-overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)} {--, textOverlays--}}
-    gameState moveAttempt maybeCheck maybeGameOver =
+overlay :: HelmColor.Color -> BoardView -> GameState -> MoveAttempt -> Maybe Check -> Maybe GameOver -> PlayerState -> HGfx.Form SDLEngine
+overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
+    gameState moveAttempt maybeCheck maybeGameOver playerState =
   let
     topX = width / 2 + left
     topY = top / 2
-    sidebarX = width + left + 100
+    sidebarX = width + left + 150
     sidebarY = top + 15
     topForm = HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState maybeGameOver
+
+    sbarTexts = sideBarTexts helmColor moveAttempt maybeCheck playerState
 
     calcOffsets :: [V2 Double] -> Text -> [V2 Double]
     calcOffsets (V2 x y : v2s) txt = V2 x (y + textHeight txt) : v2s
 
     offsets :: [V2 Double]
-    offsets = reverse $ foldl' calcOffsets [pure 0] $ sideBarTexts helmColor moveAttempt maybeCheck
+    offsets = reverse $ foldl' calcOffsets [pure 0] sbarTexts
 
     toForm :: V2 Double -> Text -> HGfx.Form SDLEngine
-    toForm offset txt = HGfx.move offset $ HGfx.text $ txt
+    toForm offset txt = HGfx.move offset $ HGfx.text txt
 
     sidebarOffsetForm :: V2 Double -> Text -> HGfx.Form SDLEngine
-    sidebarOffsetForm (V2 x y) txt = toForm (V2 (sidebarX + x) (sidebarY + y)) txt
+    sidebarOffsetForm (V2 x y) = toForm (V2 (sidebarX + x) (sidebarY + y))
   in
-    case sideBarTexts helmColor moveAttempt maybeCheck of
+    case sbarTexts of
       [] -> topForm
-      (firstTxt : txts) -> HGfx.group $
-        (topForm : toForm (V2 sidebarX sidebarY) firstTxt : (uncurry sidebarOffsetForm <$> (zip offsets txts)))
-
-{-
-          [ HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState maybeGameOver
-          , HGfx.move (V2 sidebarX sidebarY) $ HGfx.text $ checkText helmColor maybeCheck
-          , HGfx.move (V2 sidebarX $ sidebarY + textHeight) $ HGfx.text $ moveAttemptText helmColor moveAttempt
-          ]
--}
+      (firstTxt : txts) -> HGfx.group
+        (topForm : toForm (V2 sidebarX sidebarY) firstTxt : (uncurry sidebarOffsetForm <$> zip offsets txts))
 
 boardForm :: Engine e => Image e -> Image e -> BoardView -> HGfx.Form e
 boardForm lightSquare darkSquare BoardView{bbox, orient} =
