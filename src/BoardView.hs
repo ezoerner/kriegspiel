@@ -293,18 +293,18 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
         | otherwise =
             HGfx.move (toOffset boardPosition orient ssize) $ mkForm piece
 
-    pieces = [(coordsToBoardPosition coords, piece) |
-                (coords, square) <- assocs $ board gameState,
-                let maybePiece = squareToMaybe square,
-                isJust maybePiece,
-                let piece@(Piece clr _) = fromJust maybePiece,
-                case (isGameOver gameState, playerState, gameVariant, clr) of
-                    (True, _ , _, _) -> True
-                    (_, _, Chess, _) -> True
-                    (_, HotSeatWait, Kriegspiel, White) -> currentPlayer gameState == Black
-                    (_, HotSeatWait, Kriegspiel, Black) -> currentPlayer gameState == White
-                    (_, Playing, Kriegspiel, _) -> currentPlayer gameState == clr
-                    _ -> True]
+    pieces = [ (coordsToBoardPosition coords, piece) |
+               (coords, square) <- assocs $ board gameState
+             , let maybePiece = squareToMaybe square
+             , isJust maybePiece
+             , let piece@(Piece clr _) = fromJust maybePiece
+             , case (isGameOver gameState, playerState, gameVariant, clr) of
+                 (True, _ , _, _) -> True
+                 (_, _, Chess, _) -> True
+                 (_, HotSeatWait, Kriegspiel, White) -> currentPlayer gameState == Black
+                 (_, HotSeatWait, Kriegspiel, Black) -> currentPlayer gameState == White
+                 (_, _, Kriegspiel, _) -> currentPlayer gameState == clr
+             ]
     sortedPieces = sortOn (sortF playerState . fst) pieces
     imageCollage = HGfx.collage $ map (uncurry pieceImage) sortedPieces
   in
