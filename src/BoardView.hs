@@ -119,13 +119,13 @@ findPawnTries gameState thisPlayer =
 
 sideBarTexts :: HelmColor.Color -- ^ the text color
              -> MoveAttempt
-             -> Maybe Check
+             -> [Check]
              -> PlayerState
              -> Color
              -> [Text]
-sideBarTexts helmColor moveAttempt maybeCheck playerState currPlayer =
+sideBarTexts helmColor moveAttempt checks playerState currPlayer =
   hotSeatTexts helmColor playerState currPlayer ++
-  checkText helmColor maybeCheck ++
+  checkText helmColor checks ++
   moveAttemptText helmColor moveAttempt ++
   promptPromoteText helmColor playerState
 
@@ -155,17 +155,16 @@ promptPromoteText helmColor playerState =
     height 20 . color helmColor . toText <$> showPlayerState playerState
 
 checkText :: HelmColor.Color
-          -> Maybe Check
+          -> [Check]
           -> [Text]
-checkText helmColor maybeCheck =
+checkText helmColor checks =
   let
-    showCheck (Just LongDiagonal) = ["Check on long diagonal"]
-    showCheck (Just ShortDiagonal) = ["Check on short diagonal"]
-    showCheck (Just KnightCheck) = ["Check from a Knight"]
-    showCheck (Just ckType) = [show ckType ++ " check"]
-    showCheck Nothing = []
+    showCheck LongDiagonal = "Check on long diagonal"
+    showCheck ShortDiagonal = "Check on short diagonal"
+    showCheck KnightCheck = "Check from a Knight"
+    showCheck ckType = show ckType ++ " check"
   in
-    height 30 . color helmColor . toText <$> showCheck (checkType <$> maybeCheck)
+    height 30 . color helmColor . toText . showCheck . checkType <$> checks
 
 moveAttemptText :: HelmColor.Color
                 -> MoveAttempt
@@ -198,7 +197,7 @@ textOverlay :: HelmColor.Color
             -> BoardView
             -> GameState
             -> MoveAttempt
-            -> Maybe Check
+            -> [Check]
             -> Maybe GameOver
             -> PlayerState
             -> HGfx.Form SDLEngine
@@ -207,7 +206,7 @@ textOverlay
     BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
     gameState
     moveAttempt
-    maybeCheck
+    checks
     maybeGameOver
     playerState =
   let
@@ -218,7 +217,7 @@ textOverlay
     currPlayer = currentPlayer gameState
     topForm = HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState maybeGameOver
 
-    sbarTexts = sideBarTexts helmColor moveAttempt maybeCheck playerState currPlayer
+    sbarTexts = sideBarTexts helmColor moveAttempt checks playerState currPlayer
 
     calcOffsets :: [V2 Double] -> Text -> [V2 Double]
     calcOffsets offs@(V2 x y : _) txt = V2 x (y + textHeight txt) : offs

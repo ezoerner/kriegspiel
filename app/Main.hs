@@ -26,7 +26,7 @@ import           Options
 
 data Action = DoNothing
             | ResizeWindow (V2 Int)
-            | FlipBoard
+            | RotateBoard
             | MoveMouse (V2 Int)
             | StartDrag (V2 Int)
             | Drop (V2 Int)
@@ -41,14 +41,14 @@ background :: V2 Double -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 
 initialWindowDims :: V2 Int
-initialWindowDims = V2 800 640
+initialWindowDims = V2 1000 640
 
 initial :: Options -> (Model, Cmd SDLEngine Action)
 initial options = (initialModel options initialWindowDims, Cmd.none)
 
 update :: Model -> Action -> (Model, Cmd SDLEngine Action)
 update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
-update model@Model{playerState = Playing} FlipBoard = (flipBoard model, Cmd.none)
+update model@Model{playerState = Playing} RotateBoard = (rotateBoard model, Cmd.none)
 update model@Model{playerState = Playing} HotSeatNext = (model, Cmd.none)
 update model@Model{playerState = HotSeatWait} HotSeatNext = (model{playerState = HotSeatBlank}, Cmd.none)
 update model@Model{playerState = HotSeatBlank} HotSeatNext = (model{playerState = Playing}, Cmd.none)
@@ -62,7 +62,7 @@ subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
     [ Window.resizes ResizeWindow
     , Keyboard.presses $ \case
-        Keyboard.FKey       -> FlipBoard
+        Keyboard.FKey       -> RotateBoard
         Keyboard.SpaceKey   -> HotSeatNext
         Keyboard.QKey       -> Promote Queen
         Keyboard.BKey       -> Promote Bishop
@@ -90,7 +90,7 @@ view assets _ Model{options = options@Options{gameVariant}, ..} =
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
-        , textOverlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver playerState
+        , textOverlay overlayColor boardView gameState lastMoveAttempt checks maybeGameOver playerState
         , move border $ boardForm lightSquare darkSquare boardView (pwnTries gameVariant playerState)
         , move border $ piecesForm playerState gameState options boardView assets mousePos
         ]

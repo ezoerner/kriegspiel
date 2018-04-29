@@ -19,7 +19,7 @@ data Model = Model
     , boardView :: !BoardView
     , lastMoveAttempt :: !MoveAttempt
     , pawnTries :: ![BoardPosition]
-    , maybeCheck :: !(Maybe Check)
+    , checks :: ![Check]
     , maybeGameOver :: !(Maybe GameOver)
     , scores :: !Scores
     }
@@ -35,7 +35,7 @@ initialModel options windowDims = Model
     , boardView = initialBoardView windowDims
     , lastMoveAttempt = Successful
     , pawnTries = []
-    , maybeCheck = Nothing
+    , checks = []
     , maybeGameOver = Nothing
     , scores = Scores 0 0
     }
@@ -47,10 +47,10 @@ resize model@Model{boardView} windowDims =
   in
     model {windowDims, boardView=boardView{bbox}}
 
-flipBoard :: Model -> Model
-flipBoard model@Model{boardView = boardView@BoardView{orient = Black}}
+rotateBoard :: Model -> Model
+rotateBoard model@Model{boardView = boardView@BoardView{orient = Black}}
     = model{boardView = boardView{orient = White}}
-flipBoard model@Model{boardView = boardView@BoardView{orient = White}}
+rotateBoard model@Model{boardView = boardView@BoardView{orient = White}}
     = model{boardView = boardView{orient = Black}}
 
 
