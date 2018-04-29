@@ -8,23 +8,7 @@ maintainer:
 copyright:
   - (c) 2018 Eric Zoerner
 category: Game
-dependencies:
-- containers
-- directory
-- array
-- base
-- helm
-- linear
-- filepath
-- utility-ht
-- optparse-applicative
-- hchesslib
-executables:
-  kriegspiel:
-    main: Main.hs
-ghc-options: -Wall -Werror
-source-dirs:
-- src
+
 data-files:
 - images/square_gray_light.png
 - images/square_brown_light.png
@@ -43,4 +27,39 @@ data-files:
 - images/b_pawn_png_withShadow.png
 - images/w_king_png_withShadow.png
 - LICENSE
+
+executables:
+  kriegspiel:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    - -Werror
+    dependencies:
+    - base
+    - helm
+    - hchesslib
+    - directory
+    - filepath
+    - linear
+    - optparse-applicative
+    - containers
+    - kriegspiel
+
+library:
+  source-dirs: src
+  dependencies:
+  - containers
+  - directory
+  - array
+  - base
+  - helm
+  - linear
+  - utility-ht
+  - hchesslib
+  - optparse-applicative
+
 stability: experimental

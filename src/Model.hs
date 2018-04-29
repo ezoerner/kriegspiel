@@ -90,7 +90,7 @@ dropPiece model@Model
             (model{ gameState = nextGameState
                   , boardView = boardView{posInMotion = Nothing}
                   }, True)
-        Nothing -> 
+        Nothing ->
           let maybeNext' = do
                 let promoteTo = "Q"
                 targetCoordMove <- maybeTargetCoordMove

@@ -7,7 +7,7 @@ import           Control.Applicative (pure)
 import           Control.Monad (guard)
 import           Data.Array as A
 import           Data.Char (ord, chr, toLower)
-import           Data.List (map, sortOn)
+import           Data.List (map, sortOn, foldl')
 import qualified Data.Map.Strict as M
 import           Data.Maybe (fromMaybe, isJust)
 import           Data.Maybe.HT (toMaybe)
@@ -16,7 +16,7 @@ import qualified Helm.Color as HelmColor
 import           Helm.Engine (Engine)
 import           Helm.Engine.SDL (SDLEngine)
 import qualified Helm.Graphics2D as HGfx
-import qualified Helm.Graphics2D.Text as Text
+import           Helm.Graphics2D.Text
 import           Linear.V2 (V2(V2))
 
 import           ChessUtils
@@ -32,6 +32,7 @@ data BoardView = BoardView
     { bbox :: !BoundingSquare
     , orient :: !Color
     , posInMotion :: !(Maybe BoardPosition)
+    , textOverlays :: ![Text]
     }
     deriving (Show)
 
@@ -44,10 +45,11 @@ initialBoardView windowDims =
     { bbox = calcBoardBBox windowDims
     , orient = White
     , posInMotion = Nothing
+    , textOverlays = []
     }
 
 border :: Num a => V2 a
-border = V2 100 100 
+border = V2 100 100
 
 calcBoardBBox :: (Integral a, Ord a) => V2 a -> BoundingSquare
 calcBoardBBox windowSize =
@@ -63,8 +65,8 @@ findPositionWithPiece bord BoardView{bbox, orient} point playerTurn =
     maybeBoardPos = toBoardPosition bbox point orient
   in
     maybeBoardPos >>= \testPos ->
-        bord `pieceAt` toCoord testPos >>= \(Piece color _) ->
-        guard (color == playerTurn) >>
+        bord `pieceAt` toCoord testPos >>= \(Piece clr _) ->
+        guard (clr == playerTurn) >>
         return testPos
 
 toBoardPosition :: BoundingSquare -> V2 Double -> Color -> Maybe BoardPosition
@@ -91,9 +93,9 @@ findPawnTries gameState thisPlayer =
         (coords@(coordRank, coordFile), square)
             <- A.assocs $ board gameState,
         square /= Empty,
-        let (Piece color pieceType) = fromMaybe undefined (squareToMaybe square),
+        let (Piece clr pieceType) = fromMaybe undefined (squareToMaybe square),
         pieceType == Pawn,
-        color == thisPlayer,
+        clr == thisPlayer,
         let direction = if thisPlayer == White then -1 else 1,
         pawnTryCoords <- [ (coordRank + direction, coordFile - 1)
                         , (coordRank + direction, coordFile + 1)
@@ -104,37 +106,91 @@ findPawnTries gameState thisPlayer =
         isLegalMove gameState moveSpec
     ]
 
-overlay :: HelmColor.Color -> BoardView -> GameState -> MoveAttempt -> Maybe Check -> Maybe GameOver -> HGfx.Form SDLEngine
-overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
-    gameState lastMoveAttempt maybeCheck maybeGameOver =
+sideBarTexts :: HelmColor.Color -- ^ the text color
+             -> MoveAttempt
+             -> Maybe Check
+             -> [Text]
+sideBarTexts
+    helmColor
+    moveAttempt
+    maybeCheck =
+  checkText helmColor maybeCheck:
+  moveAttemptText helmColor moveAttempt :
+  []
+
+checkText :: HelmColor.Color
+          -> Maybe Check
+          -> Text
+checkText helmColor maybeCheck =
   let
-    currPlayer = currentPlayer gameState
-    topX = width / 2 + left
-    topY = top / 2
-    sidebarX = width + left + 100
-    sidebarY = top + 15
-    textHeight = 30
-    showLastMoveAttempt Successful = ""
-    showLastMoveAttempt Illegal = "No"
-    showLastMoveAttempt Impossible = "Hell, No!"
-    showToMove = case maybeGameOver of
-        Nothing -> " To Move: " ++ show currPlayer
-        Just gameOver -> show gameOver -- TO DO improve this
     showCheck (Just LongDiagonal) = "Check on long diagonal"
     showCheck (Just ShortDiagonal) = "Check on short diagonal"
     showCheck (Just KnightCheck) = "Check from a Knight"
     showCheck (Just ckType) = show ckType ++ " check"
     showCheck Nothing = ""
   in
-    HGfx.group [ HGfx.move (V2 topX topY) $ HGfx.text $ Text.height textHeight $
-                Text.color helmColor $
-                Text.toText showToMove
-          , HGfx.move (V2 sidebarX sidebarY) $ HGfx.text $ Text.height textHeight $
-                Text.color helmColor $ Text.toText $ showCheck (checkType <$> maybeCheck)
-          , HGfx.move (V2 sidebarX $ sidebarY + textHeight) $ HGfx.text $ Text.height textHeight $
-                Text.color helmColor $
-                Text.toText $ showLastMoveAttempt lastMoveAttempt
+    height 30 $ color helmColor $ toText $ showCheck (checkType <$> maybeCheck)
+
+moveAttemptText :: HelmColor.Color
+                -> MoveAttempt
+                -> Text
+moveAttemptText helmColor moveAttempt =
+  let
+    showLastMoveAttempt Successful = ""
+    showLastMoveAttempt Illegal = "No"
+    showLastMoveAttempt Impossible = "Hell, No!"
+  in
+    height 30 $ color helmColor $ toText $ showLastMoveAttempt moveAttempt
+
+toMoveText :: HelmColor.Color
+           -> GameState
+           -> Maybe GameOver
+           -> Text
+toMoveText
+    helmColor
+    gameState
+    maybeGameOver =
+  let
+    currPlayer = currentPlayer gameState
+    showToMove = case maybeGameOver of
+        Nothing -> " To Move: " ++ show currPlayer
+        Just gameOver -> show gameOver -- TO DO improve this
+  in
+    height 30 $ color helmColor $ toText showToMove
+
+overlay :: HelmColor.Color -> BoardView -> GameState -> MoveAttempt -> Maybe Check -> Maybe GameOver -> HGfx.Form SDLEngine
+overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)} {--, textOverlays--}}
+    gameState moveAttempt maybeCheck maybeGameOver =
+  let
+    topX = width / 2 + left
+    topY = top / 2
+    sidebarX = width + left + 100
+    sidebarY = top + 15
+    topForm = HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState maybeGameOver
+
+    calcOffsets :: [V2 Double] -> Text -> [V2 Double]
+    calcOffsets (V2 x y : v2s) txt = V2 x (y + textHeight txt) : v2s
+
+    offsets :: [V2 Double]
+    offsets = reverse $ foldl' calcOffsets [pure 0] $ sideBarTexts helmColor moveAttempt maybeCheck
+
+    toForm :: V2 Double -> Text -> HGfx.Form SDLEngine
+    toForm offset txt = HGfx.move offset $ HGfx.text $ txt
+
+    sidebarOffsetForm :: V2 Double -> Text -> HGfx.Form SDLEngine
+    sidebarOffsetForm (V2 x y) txt = toForm (V2 (sidebarX + x) (sidebarY + y)) txt
+  in
+    case sideBarTexts helmColor moveAttempt maybeCheck of
+      [] -> topForm
+      (firstTxt : txts) -> HGfx.group $
+        (topForm : toForm (V2 sidebarX sidebarY) firstTxt : (uncurry sidebarOffsetForm <$> (zip offsets txts)))
+
+{-
+          [ HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState maybeGameOver
+          , HGfx.move (V2 sidebarX sidebarY) $ HGfx.text $ checkText helmColor maybeCheck
+          , HGfx.move (V2 sidebarX $ sidebarY + textHeight) $ HGfx.text $ moveAttemptText helmColor moveAttempt
           ]
+-}
 
 boardForm :: Engine e => Image e -> Image e -> BoardView -> HGfx.Form e
 boardForm lightSquare darkSquare BoardView{bbox, orient} =
@@ -160,18 +216,18 @@ piecesForm :: Engine e => PlayerState -> GameState -> Options -> BoardView ->
 piecesForm HotSeatBlank _ _ _ _ _ = HGfx.blank
 piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, posInMotion} assets mousePos =
   let
-    showColor color = toLower (head $ show color)
+    showColor clr = toLower (head $ show clr)
     showPieceType pieceType = toLower <$> show pieceType
-    pieceName (Piece color pieceType) = showColor color : "_" ++ showPieceType pieceType
+    pieceName (Piece clr pieceType) = showColor clr : "_" ++ showPieceType pieceType
     chooseImage piece = assets M.! pieceName piece
     ssize = squareSize bbox
     imageDims = pure ssize
     mkForm piece = HGfx.image imageDims $ chooseImage piece
 
     pieceImage boardPosition piece
-        | posInMotion == Just boardPosition = 
+        | posInMotion == Just boardPosition =
             HGfx.move (toBoardLocal (fromIntegral <$> mousePos) bbox - imageDims / 2) $ mkForm piece
-        | otherwise = 
+        | otherwise =
             HGfx.move (toOffset boardPosition orient ssize) $ mkForm piece
 
     pieces = [(coordsToBoardPosition coords, piece) |
@@ -179,13 +235,13 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
                 let maybePiece = squareToMaybe square,
                 isJust maybePiece,
                 -- the undefined here is filtered out by above guard
-                let piece@(Piece color _) = fromMaybe undefined maybePiece,
-                case (isGameOver gameState, playerState, gameVariant, color) of
+                let piece@(Piece clr _) = fromMaybe undefined maybePiece,
+                case (isGameOver gameState, playerState, gameVariant, clr) of
                     (True, _ , _, _) -> True
                     (_, _, Chess, _) -> True
                     (_, HotSeatWait, Kriegspiel, White) -> currentPlayer gameState == Black
                     (_, HotSeatWait, Kriegspiel, Black) -> currentPlayer gameState == White
-                    (_, Playing, Kriegspiel, _) -> currentPlayer gameState == color
+                    (_, Playing, Kriegspiel, _) -> currentPlayer gameState == clr
                     _ -> True]
     sortedPieces = sortOn ((== posInMotion) . Just . fst) pieces
     imageCollage = HGfx.collage $ map (uncurry pieceImage) sortedPieces

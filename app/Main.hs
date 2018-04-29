@@ -83,7 +83,6 @@ subscriptions = Sub.batch
     , Mouse.moves $ \loc -> MoveMouse loc
     ]
 
-
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
 view assets _ Model{..} =
   let
