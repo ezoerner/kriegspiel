@@ -105,13 +105,13 @@ findPawnTries gameState thisPlayer =
         (coords@(coordRank, coordFile), square)
             <- A.assocs $ board gameState,
         square /= Empty,
-        let (Piece clr pieceType) = fromMaybe undefined (squareToMaybe square),
+        let (Piece clr pieceType) = fromJust (squareToMaybe square),
         pieceType == Pawn,
         clr == thisPlayer,
         let direction = if thisPlayer == White then -1 else 1,
         pawnTryCoords <- [ (coordRank + direction, coordFile - 1)
-                        , (coordRank + direction, coordFile + 1)
-                        ],
+                         , (coordRank + direction, coordFile + 1)
+                         ],
         let pawnTry = coordsToBoardPosition pawnTryCoords,
         let fromPos = coordsToBoardPosition coords,
         let moveSpec = toCoordMove fromPos pawnTry,
@@ -246,17 +246,37 @@ textOverlay
           : (uncurry sidebarOffsetForm <$>  zip (tail offsets) txts)
           )
 
-boardForm :: Engine e => Image e -> Image e -> BoardView -> HGfx.Form e
-boardForm lightSquare darkSquare BoardView{bbox, orient} =
+boardForm :: Engine e => Image e
+          -> Image e
+          -> BoardView
+          -> [BoardPosition] -- ^ pawn tries
+          -> HGfx.Form e
+boardForm lightSquare darkSquare BoardView{bbox, orient} pawnTries =
   let
     ssize = squareSize bbox
     imageDims = V2 ssize ssize
     pivot White = 0
     pivot Black = 1
+    toPos x y = if orient == White
+                then (chr (floor x + ord 'a'), 8 - floor y)
+                else (chr (floor x + ord 'a'), floor y + 1)
+    pawnTryForm = HGfx.move (V2 0 ssize/2) $ -- TODO attempt to vertically center text form inside group doesn't work, bug in Helm?
+                    HGfx.text $
+                    height 12 $
+                    color (HelmColor.rgb 1 1 1) $
+                    bold $
+                    toText "pawn try"
     chooseImage x y = if floor (x + y) `mod` (2 :: Integer) == pivot orient
                       then lightSquare
                       else darkSquare
-    mkForm x y = HGfx.image imageDims $ chooseImage x y
+    mkForm x y =
+      let
+        baseForm = HGfx.image imageDims $ chooseImage x y
+        isPawnTry = toPos x y `elem` pawnTries
+      in
+        if isPawnTry
+        then HGfx.group [baseForm, pawnTryForm]
+        else baseForm
   in
     HGfx.toForm $ HGfx.collage [HGfx.move (V2 hOff vOff) $ mkForm x y
                                 | x <- [0..7]
@@ -330,8 +350,10 @@ maxPosition = ('h', 8)
 squareSize :: BoundingSquare -> Double
 squareSize bbox = width bbox / 8
 
--- Color: orientation of the board
-toOffset :: BoardPosition -> Color -> Double -> V2 Double
+toOffset :: BoardPosition
+         -> Color -- ^ orientation of the board
+         -> Double
+         -> V2 Double
 toOffset (file, rank) White ssize =
     (fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)) * pure ssize
 toOffset (file, rank) Black ssize =

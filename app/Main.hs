@@ -79,16 +79,19 @@ subscriptions = Sub.batch
     ]
 
 view :: M.Map String (Image SDLEngine) -> SDLEngine -> Model -> Graphics SDLEngine
-view assets _ Model{..} =
+view assets _ Model{options = options@Options{gameVariant}, ..} =
   let
     lightSquare = assets M.! "square_brown_light"
     darkSquare = assets M.! "square_brown_dark"
     overlayColor = rgb 0 0 0
+    currPlayer = currentPlayer gameState
+    pwnTries Kriegspiel Playing = findPawnTries gameState currPlayer
+    pwnTries _ _ = []
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
         , textOverlay overlayColor boardView gameState lastMoveAttempt maybeCheck maybeGameOver playerState
-        , move border $ boardForm lightSquare darkSquare boardView
+        , move border $ boardForm lightSquare darkSquare boardView (pwnTries gameVariant playerState)
         , move border $ piecesForm playerState gameState options boardView assets mousePos
         ]
 
