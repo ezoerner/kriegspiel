@@ -110,6 +110,7 @@ promote model@Model{gameState, playerState = PromotionPrompt fromPos toPos} piec
     newGameState = fromJust $ move gameState coordMove -- state machine guarantees a Just
   in
     endTurn $ model{gameState = newGameState}
+promote model _ = model -- ^ cannot promote in other player states
 
 canPromote :: GameState -> String -> Bool
 canPromote gameState coordMove = isLegalMove gameState (coordMove ++ "=Q")

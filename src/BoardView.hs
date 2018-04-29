@@ -9,7 +9,7 @@ import           Data.Array as A
 import           Data.Char (ord, chr, toLower)
 import           Data.List (map, sortOn, foldl')
 import qualified Data.Map.Strict as M
-import           Data.Maybe (fromMaybe, isJust, fromJust)
+import           Data.Maybe (isJust, fromJust)
 import           Data.Maybe.HT (toMaybe)
 import           Helm
 import qualified Helm.Color as HelmColor
@@ -92,10 +92,8 @@ toCoordMove fromPos toPos = toCoord fromPos ++ "-" ++ toCoord toPos
 toCoordMovePromote :: BoardPosition -> BoardPosition -> PieceType -> String
 toCoordMovePromote fromPos toPos pieceType =
   let
-    showPieceType Queen = "Q"
     showPieceType Knight = "N"
-    showPieceType Rook = "R"
-    showPieceType Bishop = "B"
+    showPieceType pieceTyp = [head $ show pieceTyp]
   in
     toCoordMove fromPos toPos ++ "=" ++ showPieceType pieceType
 
@@ -115,7 +113,8 @@ findPawnTries gameState thisPlayer =
         let pawnTry = coordsToBoardPosition pawnTryCoords,
         let fromPos = coordsToBoardPosition coords,
         let moveSpec = toCoordMove fromPos pawnTry,
-        isLegalMove gameState moveSpec
+        let moveSpecWithPromotion = toCoordMovePromote fromPos pawnTry Queen,
+        isLegalMove gameState moveSpec || isLegalMove gameState moveSpecWithPromotion
     ]
 
 sideBarTexts :: HelmColor.Color -- ^ the text color
