@@ -89,6 +89,16 @@ toCoord (file, rank) = file : show rank
 toCoordMove :: BoardPosition -> BoardPosition -> String
 toCoordMove fromPos toPos = toCoord fromPos ++ "-" ++ toCoord toPos
 
+toCoordMovePromote :: BoardPosition -> BoardPosition -> PieceType -> String
+toCoordMovePromote fromPos toPos pieceType =
+  let
+    showPieceType Queen = "Q"
+    showPieceType Knight = "N"
+    showPieceType Rook = "R"
+    showPieceType Bishop = "B"
+  in
+    toCoordMove fromPos toPos ++ "=" ++ showPieceType pieceType
+
 findPawnTries :: GameState -> Color -> [BoardPosition]
 findPawnTries gameState thisPlayer =
     [ pawnTry |
@@ -241,6 +251,13 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
     imageDims = pure ssize
     mkForm piece = HGfx.image imageDims $ chooseImage piece
 
+    -- sort pieces so moving or promoting piece is on top
+    sortF :: PlayerState -> BoardPosition -> Bool
+    sortF (PromotionPrompt _ toPos) thisPos = (do
+      p <- posInMotion
+      return $ p == thisPos || toPos == thisPos) == Just True
+    sortF _ thisPos = Just thisPos == posInMotion
+
     pieceImage boardPosition piece
         | (PromotionPrompt fromPos toPos) <- playerState, boardPosition == fromPos =
             HGfx.move (toOffset toPos orient ssize) $ mkForm piece
@@ -261,7 +278,7 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
                     (_, HotSeatWait, Kriegspiel, Black) -> currentPlayer gameState == White
                     (_, Playing, Kriegspiel, _) -> currentPlayer gameState == clr
                     _ -> True]
-    sortedPieces = sortOn ((== posInMotion) . Just . fst) pieces
+    sortedPieces = sortOn (sortF playerState . fst) pieces
     imageCollage = HGfx.collage $ map (uncurry pieceImage) sortedPieces
   in
     HGfx.toForm imageCollage

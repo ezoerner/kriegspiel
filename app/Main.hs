@@ -31,6 +31,7 @@ data Action = DoNothing
             | StartDrag (V2 Int)
             | Drop (V2 Int)
             | HotSeatNext
+            | Promote PieceType
 
 backgroundColor :: HelmColor.Color
 backgroundColor =
@@ -52,19 +53,9 @@ update model@Model{playerState = Playing} HotSeatNext = (model, Cmd.none)
 update model@Model{playerState = HotSeatWait} HotSeatNext = (model{playerState = HotSeatBlank}, Cmd.none)
 update model@Model{playerState = HotSeatBlank} HotSeatNext = (model{playerState = Playing}, Cmd.none)
 update model@Model{playerState = Playing} (StartDrag globalPoint) = (startDragPiece model globalPoint, Cmd.none)
-update model@Model{playerState = Playing, options = Options{gameVariant, hotSeat}, boardView} (Drop globalPoint) =
-  let
-    (model', isLegal) = dropPiece model globalPoint
-    gameState' = gameState model'
-    nextState = case gameVariant of
-        Kriegspiel -> HotSeatWait
-        Chess -> Playing
-    model'' = if hotSeat && isLegal
-              then model'{playerState = nextState, boardView=boardView{orient=currentPlayer gameState'}}
-              else model'
-  in
-    (model'', Cmd.none)
+update model@Model{playerState = Playing} (Drop globalPoint) = (dropPiece model globalPoint, Cmd.none)
 update model (MoveMouse mousePos) = (model {mousePos}, Cmd.none)
+update model@Model{playerState = PromotionPrompt _ _} (Promote pieceType) = (promote model pieceType, Cmd.none)
 update model _ = (model, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
@@ -73,6 +64,10 @@ subscriptions = Sub.batch
     , Keyboard.presses $ \case
         Keyboard.FKey       -> FlipBoard
         Keyboard.SpaceKey   -> HotSeatNext
+        Keyboard.QKey       -> Promote Queen
+        Keyboard.BKey       -> Promote Bishop
+        Keyboard.RKey       -> Promote Rook
+        Keyboard.NKey       -> Promote Knight
         _                   -> DoNothing
     , Mouse.downs $ \button loc -> case button of
         Mouse.LeftButton -> StartDrag loc

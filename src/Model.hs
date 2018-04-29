@@ -74,7 +74,7 @@ startDragPiece model@Model
             Nothing -> model
             Just boardPos -> model{boardView = newBoardView boardPos}
 
-dropPiece :: Model -> V2 Int -> (Model, Bool)
+dropPiece :: Model -> V2 Int -> Model
 dropPiece model@Model
     { boardView = boardView@BoardView{bbox, orient, posInMotion = Just dragPos}
     , gameState
@@ -88,20 +88,45 @@ dropPiece model@Model
   in
     case maybeNext of
         Just nextGameState ->
-            (model{ gameState = nextGameState
+            endTurn model{ gameState = nextGameState
                   , boardView = boardView{posInMotion = Nothing}
-                  }, True)
+                  }
         Nothing ->
           let maybeResult = maybeTargetCoordMove >>= \targetCoordMove ->
                 if canPromote gameState targetCoordMove
-                    then Just (model
+                    then Just model
                         { playerState = PromotionPrompt dragPos (fromJust maybeToPos)
                         , boardView = boardView{posInMotion = Nothing
-                        }}, False)
+                        }}
                     else Nothing
           in
-            fromMaybe (model{boardView = boardView{posInMotion = Nothing}}, False) maybeResult
-dropPiece model _ = (model, False) -- Nothing in motion
+            fromMaybe model{boardView = boardView{posInMotion = Nothing}} maybeResult
+dropPiece model _ = model -- Nothing in motion
+
+promote :: Model -> PieceType -> Model
+promote model@Model{gameState, playerState = PromotionPrompt fromPos toPos} pieceType =
+  let
+    coordMove = toCoordMovePromote fromPos toPos pieceType
+    newGameState = fromJust $ move gameState coordMove -- state machine guarantees a Just
+  in
+    endTurn $ model{gameState = newGameState}
 
 canPromote :: GameState -> String -> Bool
 canPromote gameState coordMove = isLegalMove gameState (coordMove ++ "=Q")
+
+endTurn :: Model -> Model
+endTurn model@Model
+    { options = Options{gameVariant, hotSeat}
+    , boardView=boardView@BoardView{orient}
+    } =
+  let
+    gameState' = gameState model
+    (nextPlayerState, nextOrient) = case (gameVariant, hotSeat) of
+        (Kriegspiel, True) -> (HotSeatWait, currentPlayer gameState')
+        (Chess, True) -> (Playing, currentPlayer gameState')
+        _ -> (Playing, orient)
+  in
+    model
+      { playerState = nextPlayerState
+      , boardView=boardView{orient = nextOrient}
+      }
