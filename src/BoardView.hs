@@ -9,7 +9,7 @@ import           Data.Array as A
 import           Data.Char (ord, chr, toLower)
 import           Data.List (map, sortOn, foldl')
 import qualified Data.Map.Strict as M
-import           Data.Maybe (fromMaybe, isJust, catMaybes)
+import           Data.Maybe (fromMaybe, isJust)
 import           Data.Maybe.HT (toMaybe)
 import           Helm
 import qualified Helm.Color as HelmColor
@@ -181,7 +181,8 @@ overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
     sbarTexts = sideBarTexts helmColor moveAttempt maybeCheck playerState
 
     calcOffsets :: [V2 Double] -> Text -> [V2 Double]
-    calcOffsets (V2 x y : v2s) txt = V2 x (y + textHeight txt) : v2s
+    calcOffsets offs@(V2 x y : _) txt = V2 x (y + textHeight txt) : offs
+    calcOffsets [] _ = []
 
     offsets :: [V2 Double]
     offsets = reverse $ foldl' calcOffsets [pure 0] sbarTexts
@@ -194,8 +195,15 @@ overlay helmColor BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
   in
     case sbarTexts of
       [] -> topForm
-      (firstTxt : txts) -> HGfx.group
-        (topForm : toForm (V2 sidebarX sidebarY) firstTxt : (uncurry sidebarOffsetForm <$> zip offsets txts))
+      [firstTxt] -> HGfx.group
+          [ topForm
+          , toForm (V2 sidebarX sidebarY) firstTxt
+          ]
+      firstTxt : txts -> HGfx.group
+          ( topForm
+          : toForm (V2 sidebarX sidebarY) firstTxt
+          : (uncurry sidebarOffsetForm <$>  tail (zip offsets txts))
+          )
 
 boardForm :: Engine e => Image e -> Image e -> BoardView -> HGfx.Form e
 boardForm lightSquare darkSquare BoardView{bbox, orient} =
