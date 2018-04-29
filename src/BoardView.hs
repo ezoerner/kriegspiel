@@ -122,18 +122,31 @@ sideBarTexts :: HelmColor.Color -- ^ the text color
              -> MoveAttempt
              -> Maybe Check
              -> PlayerState
+             -> Color
              -> [Text]
-sideBarTexts helmColor moveAttempt maybeCheck playerState =
+sideBarTexts helmColor moveAttempt maybeCheck playerState currPlayer =
+  hotSeatTexts helmColor playerState currPlayer ++
   checkText helmColor maybeCheck ++
   moveAttemptText helmColor moveAttempt ++
   promptPromoteText helmColor playerState
+
+hotSeatTexts :: HelmColor.Color -> PlayerState -> Color -> [Text]
+hotSeatTexts helmColor playerState currPlayer =
+  let
+    prompt HotSeatWait =
+      [ "Type <Space> to blank screen", "for " ++ show currPlayer]
+    prompt HotSeatBlank =
+      [ "Type <Space> to start turn", "for " ++ show currPlayer]
+    prompt _ = []
+  in
+    height 20 . color helmColor . toText <$> prompt playerState
 
 promptPromoteText :: HelmColor.Color -> PlayerState -> [Text]
 promptPromoteText helmColor playerState =
   let
     showPlayerState (PromotionPrompt _ _) =
       [ "Promote Pawn:"
-      , "Press Q for Queen"
+      , "Type Q for Queen"
       , "B for Bishop"
       , "R for Rook"
       , "N for Knight"
@@ -203,9 +216,10 @@ textOverlay
     topY = top / 2
     sidebarX = width + left + 150
     sidebarY = top + 15
+    currPlayer = currentPlayer gameState
     topForm = HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState maybeGameOver
 
-    sbarTexts = sideBarTexts helmColor moveAttempt maybeCheck playerState
+    sbarTexts = sideBarTexts helmColor moveAttempt maybeCheck playerState currPlayer
 
     calcOffsets :: [V2 Double] -> Text -> [V2 Double]
     calcOffsets offs@(V2 x y : _) txt = V2 x (y + textHeight txt) : offs
