@@ -267,7 +267,6 @@ boardForm lightSquare darkSquare BoardView{bbox, orient} =
 
 piecesForm :: Engine e => PlayerState -> GameState -> Options -> BoardView ->
     M.Map String (Image e) -> V2 Int -> HGfx.Form e
-piecesForm HotSeatBlank _ _ _ _ _ = HGfx.blank
 piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, posInMotion} assets mousePos =
   let
     showColor clr = toLower (head $ show clr)
@@ -300,6 +299,7 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
              , let piece@(Piece clr _) = fromJust maybePiece
              , case (isGameOver gameState, playerState, gameVariant, clr) of
                  (True, _ , _, _) -> True
+                 (_, HotSeatBlank, _, _) -> False
                  (_, _, Chess, _) -> True
                  (_, HotSeatWait, Kriegspiel, White) -> currentPlayer gameState == Black
                  (_, HotSeatWait, Kriegspiel, Black) -> currentPlayer gameState == White
