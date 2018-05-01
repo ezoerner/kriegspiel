@@ -23,6 +23,7 @@ import qualified Helm.Window as Window
 import           BoardView
 import           Model
 import           Options
+import           ChessUtils
 
 data Action = DoNothing
             | ResizeWindow (V2 Int)
@@ -84,13 +85,12 @@ view assets _ Model{options = options@Options{gameVariant}, ..} =
     lightSquare = assets M.! "square_brown_light"
     darkSquare = assets M.! "square_brown_dark"
     overlayColor = rgb 0 0 0
-    currPlayer = currentPlayer gameState
-    pwnTries Kriegspiel Playing = findPawnTries gameState currPlayer
+    pwnTries Kriegspiel Playing = findPawnTries gameState
     pwnTries _ _ = []
   in
     Graphics2D $ collage
         [ background (fromIntegral <$> windowDims)
-        , textOverlay overlayColor boardView gameState lastMoveAttempt checks maybeGameOver playerState
+        , textOverlay overlayColor boardView gameState lastMoveAttempt playerState
         , move border $ boardForm lightSquare darkSquare boardView (pwnTries gameVariant playerState)
         , move border $ piecesForm playerState gameState options boardView assets mousePos
         ]

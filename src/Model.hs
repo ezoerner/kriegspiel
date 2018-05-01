@@ -18,10 +18,6 @@ data Model = Model
     , mousePos :: !(V2 Int)
     , boardView :: !BoardView
     , lastMoveAttempt :: !MoveAttempt
-    , pawnTries :: ![BoardPosition]
-    , checks :: ![Check]
-    , maybeGameOver :: !(Maybe GameOver)
-    , scores :: !Scores
     }
     deriving (Show)
 
@@ -34,10 +30,6 @@ initialModel options windowDims = Model
     , mousePos = pure 0
     , boardView = initialBoardView windowDims
     , lastMoveAttempt = Successful
-    , pawnTries = []
-    , checks = []
-    , maybeGameOver = Nothing
-    , scores = Scores 0 0
     }
 
 resize :: Model -> V2 Int -> Model

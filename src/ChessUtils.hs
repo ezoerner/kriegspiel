@@ -11,9 +11,6 @@ type File = Char
 type Rank = Int
 type BoardPosition = (File, Rank)
 
-isGameOver :: GameState -> Bool
-isGameOver = (||) . isDraw <*> isCheckmate
-
 data MoveAttempt = Successful | Illegal | Impossible
     deriving (Show)
 
@@ -23,23 +20,65 @@ data Scores = Scores { white :: Integer, black :: Integer }
 data Check = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
     deriving (Show, Eq)
 
-data GameOver = Checkmate { winner :: !Color } | Draw DrawReason
+data GameOver = Checkmate { winnerColor :: !Color } | Draw DrawReason
     deriving (Show)
 
-data DrawReason = Stalemate | Repetition | InsufficientForce | FiftyMove
+data DrawReason = Stalemate | InsufficientForce
     deriving (Show)
+
+isGameOver :: GameState -> Bool
+isGameOver = isJust . maybeGameOver
+
+maybeGameOver :: GameState -> Maybe GameOver
+maybeGameOver gameState
+    | isCheckmate gameState = Just $ Checkmate (fromJust $ winner gameState)
+    | isStalemate gameState = Just $ Draw Stalemate
+    | isDraw gameState && not (isStalemate gameState) = Just $ Draw InsufficientForce
+    | otherwise = Nothing  -- Draw by Repetition or FiftyMove not implemented by hschesslib library
+    -- TODO allow draw by agreement
 
 opponent :: Color -> Color
 opponent White = Black
 opponent Black = White
 
-findChecks :: Board     -- ^ the Board
-           -> Color     -- ^ player color
-           -> [Check]   -- ^ Checks
-findChecks bord thisPlayer =
-  let
-    coords = getKingSquare bord thisPlayer
-    opponentPlayer = opponent thisPlayer
+findPawnTries :: GameState -> [BoardPosition]
+findPawnTries gameState =
+    [ pawnTry |
+        (coords@(coordRank, coordFile), square)
+            <- assocs $ board gameState,
+        square /= Empty,
+        let (Piece clr pieceType) = fromJust (squareToMaybe square),
+        let thisPlayer = currentPlayer gameState,
+        pieceType == Pawn,
+        clr == thisPlayer,
+        let direction = if thisPlayer == White then -1 else 1,
+        pawnTryCoords <- [ (coordRank + direction, coordFile - 1)
+                         , (coordRank + direction, coordFile + 1)
+                         ],
+        let pawnTry = coordsToBoardPosition pawnTryCoords,
+        let fromPos = coordsToBoardPosition coords,
+        let moveSpec = toStringMove fromPos pawnTry,
+        let moveSpecWithPromotion = toStringMovePromote fromPos pawnTry Queen,
+        isLegalMove gameState moveSpec || isLegalMove gameState moveSpecWithPromotion
+    ]
+
+findChecks :: GameState -> [Check]
+findChecks gameState
+    | isGameOver gameState = []
+    | otherwise = nub $ catMaybes
+        [ knightsThreaten `toMaybe` KnightCheck
+        , anyOnLongDiagonal threateningPawnSquares coords `toMaybe` LongDiagonal
+        , anyOnShortDiagonal threateningPawnSquares coords `toMaybe` ShortDiagonal
+        , anyOnHorizontal threateningRookOrQueenSquares coords `toMaybe` Horizontal
+        , anyOnVertical threateningRookOrQueenSquares coords `toMaybe` Vertical
+        , anyOnLongDiagonal threateningBishopOrQueenSquares coords `toMaybe` LongDiagonal
+        , anyOnShortDiagonal threateningBishopOrQueenSquares coords `toMaybe` ShortDiagonal
+        ]
+  where
+    bord = board gameState
+    currPlayer = currentPlayer gameState
+    coords = getKingSquare bord currPlayer
+    opponentPlayer = opponent currPlayer
     knightSquares = map (sumSquares coords) knightPattern
     knightsThreaten = any isOpponentKnight knightSquares
     isOpponentKnight square = case getPiece bord square of
@@ -61,37 +100,40 @@ findChecks bord thisPlayer =
     potentialOpponentBishopQueenPieceSquares = mapMaybe (firstPieceInSquareList bord . iterateDirectionInsideBoard coords) bishopPattern
     threateningBishopOrQueenSquares = snd <$> filter (isOpponentBishopOrQueen . fst) potentialOpponentBishopQueenPieceSquares
     isOpponentBishopOrQueen (Piece color piecetype) = color == opponentPlayer && piecetype `elem` [Bishop, Queen]
-  in
-    nub $ catMaybes
-    [ knightsThreaten `toMaybe` KnightCheck
-    , anyOnLongDiagonal threateningPawnSquares coords `toMaybe` LongDiagonal
-    , anyOnShortDiagonal threateningPawnSquares coords `toMaybe` ShortDiagonal
-    , anyOnHorizontal threateningRookOrQueenSquares coords `toMaybe` Horizontal
-    , anyOnVertical threateningRookOrQueenSquares coords `toMaybe` Vertical
-    , anyOnLongDiagonal threateningBishopOrQueenSquares coords `toMaybe` LongDiagonal
-    , anyOnShortDiagonal threateningBishopOrQueenSquares coords `toMaybe` ShortDiagonal
-    ]
 
 anyOnLongDiagonal :: [Coordinates] -> Coordinates -> Bool
-anyOnLongDiagonal = undefined
+anyOnLongDiagonal testCoords start = any (onLongDiagonal start) testCoords
 
 anyOnShortDiagonal :: [Coordinates] -> Coordinates -> Bool
-anyOnShortDiagonal = undefined
+anyOnShortDiagonal testCoords start = any (onShortDiagonal start) testCoords
 
 anyOnHorizontal :: [Coordinates] -> Coordinates -> Bool
-anyOnHorizontal = undefined
+anyOnHorizontal testCoords start =
+  let
+    isOnHorizontal (rank1, _) (rank2, _) = rank1 == rank2
+  in
+    any (isOnHorizontal start) testCoords
 
 anyOnVertical :: [Coordinates] -> Coordinates -> Bool
-anyOnVertical = undefined
+anyOnVertical testCoords start =
+  let
+    isOnVertical (_, file1) (_, file2) = file1 == file2
+  in
+    any (isOnVertical start) testCoords
+
+onShortDiagonal :: Coordinates -> Coordinates -> Bool
+onShortDiagonal start testCoords
+    | not (isOnDiagonal start testCoords) = False
+    | otherwise = not $ onLongDiagonal start testCoords
 
 onLongDiagonal :: Coordinates -> Coordinates -> Bool
-onLongDiagonal refCoords testCoords
-    | not (isOnDiagonal refCoords testCoords) = False
-    | isCorner refCoords = True
+onLongDiagonal start testCoords
+    | not (isOnDiagonal start testCoords) = False
+    | isCorner start = True
     | otherwise = diagLength diag > diagLength otherDiag
   where
-    diag = expandDiagonal refCoords testCoords
-    otherDiag = uncurry expandDiagonal $ otherDiagonal refCoords testCoords
+    diag = expandDiagonal start testCoords
+    otherDiag = uncurry expandDiagonal $ otherDiagonal start testCoords
 
 isCorner :: Coordinates -> Bool
 isCorner (x, y) = (x == 0 || x == 7) && (y == 0 || y == 7)
@@ -209,3 +251,7 @@ parseCoordinate _ = Nothing
 
 printCoordinate :: Coordinates -> String
 printCoordinate (r, c) = [chr (ord 'a' + c), intToDigit (8 - r)]
+
+squareToMaybe :: Square -> Maybe Piece
+squareToMaybe Empty = Nothing
+squareToMaybe (Square piece) = Just piece

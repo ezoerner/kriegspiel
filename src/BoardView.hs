@@ -83,35 +83,14 @@ toBoardPosition bbox (V2 x y) playerOrient = let
 toBoardLocal :: V2 Double -> BoundingSquare -> V2 Double
 toBoardLocal globalV2 bbox = globalV2 - topLeft bbox
 
-findPawnTries :: GameState -> Color -> [BoardPosition]
-findPawnTries gameState thisPlayer =
-    [ pawnTry |
-        (coords@(coordRank, coordFile), square)
-            <- A.assocs $ board gameState,
-        square /= Empty,
-        let (Piece clr pieceType) = fromJust (squareToMaybe square),
-        pieceType == Pawn,
-        clr == thisPlayer,
-        let direction = if thisPlayer == White then -1 else 1,
-        pawnTryCoords <- [ (coordRank + direction, coordFile - 1)
-                         , (coordRank + direction, coordFile + 1)
-                         ],
-        let pawnTry = coordsToBoardPosition pawnTryCoords,
-        let fromPos = coordsToBoardPosition coords,
-        let moveSpec = toStringMove fromPos pawnTry,
-        let moveSpecWithPromotion = toStringMovePromote fromPos pawnTry Queen,
-        isLegalMove gameState moveSpec || isLegalMove gameState moveSpecWithPromotion
-    ]
-
 sideBarTexts :: HelmColor.Color -- ^ the text color
              -> MoveAttempt
-             -> [Check]
+             -> GameState
              -> PlayerState
-             -> Color
              -> [Text]
-sideBarTexts helmColor moveAttempt checks playerState currPlayer =
-  hotSeatTexts helmColor playerState currPlayer ++
-  checkText helmColor checks ++
+sideBarTexts helmColor moveAttempt gameState playerState =
+  hotSeatTexts helmColor playerState (currentPlayer gameState) ++
+  checkText helmColor gameState ++
   moveAttemptText helmColor moveAttempt ++
   promptPromoteText helmColor playerState
 
@@ -141,16 +120,16 @@ promptPromoteText helmColor playerState =
     height 20 . color helmColor . toText <$> showPlayerState playerState
 
 checkText :: HelmColor.Color
-          -> [Check]
+          -> GameState
           -> [Text]
-checkText helmColor checks =
+checkText helmColor gameState =
   let
     showCheck LongDiagonal = "Check on long diagonal"
     showCheck ShortDiagonal = "Check on short diagonal"
     showCheck KnightCheck = "Check from a Knight"
     showCheck ckType = show ckType ++ " check"
   in
-    height 30 . color helmColor . toText . showCheck <$> checks
+    height 30 . color helmColor . toText . showCheck <$> findChecks gameState
 
 moveAttemptText :: HelmColor.Color
                 -> MoveAttempt
@@ -165,17 +144,15 @@ moveAttemptText helmColor moveAttempt =
 
 toMoveText :: HelmColor.Color
            -> GameState
-           -> Maybe GameOver
            -> Text
 toMoveText
     helmColor
-    gameState
-    maybeGameOver =
+    gameState =
   let
     currPlayer = currentPlayer gameState
-    showToMove = case maybeGameOver of
+    showToMove = case maybeGameOver gameState of
         Nothing -> " To Move: " ++ show currPlayer
-        Just gameOver -> show gameOver -- TODO improve this
+        Just gameOver -> show gameOver -- TODO improve this show string
   in
     height 30 $ color helmColor $ toText showToMove
 
@@ -183,8 +160,6 @@ textOverlay :: HelmColor.Color
             -> BoardView
             -> GameState
             -> MoveAttempt
-            -> [Check]
-            -> Maybe GameOver
             -> PlayerState
             -> HGfx.Form SDLEngine
 textOverlay
@@ -192,18 +167,15 @@ textOverlay
     BoardView{bbox=BSquare{width, topLeft = (V2 left top)}}
     gameState
     moveAttempt
-    checks
-    maybeGameOver
     playerState =
   let
     topX = width / 2 + left
     topY = top / 2
-    sidebarX = width + left + 150
+    sidebarX = width + left + 175
     sidebarY = top + 15
-    currPlayer = currentPlayer gameState
-    topForm = HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState maybeGameOver
+    topForm = HGfx.move (V2 topX topY) $ HGfx.text $ toMoveText helmColor gameState
 
-    sbarTexts = sideBarTexts helmColor moveAttempt checks playerState currPlayer
+    sbarTexts = sideBarTexts helmColor moveAttempt gameState playerState
 
     calcOffsets :: [V2 Double] -> Text -> [V2 Double]
     calcOffsets offs@(V2 x y : _) txt = V2 x (y + textHeight txt) : offs
@@ -233,7 +205,7 @@ textOverlay
 boardForm :: Engine e => Image e
           -> Image e
           -> BoardView
-          -> [BoardPosition] -- ^ pawn tries
+          -> [BoardPosition]
           -> HGfx.Form e
 boardForm lightSquare darkSquare BoardView{bbox, orient} pawnTries =
   let
@@ -315,10 +287,6 @@ piecesForm playerState gameState Options{gameVariant} BoardView{bbox, orient, po
     HGfx.toForm imageCollage
 
 -- Private functions
-squareToMaybe :: Square -> Maybe Piece
-squareToMaybe Empty = Nothing
-squareToMaybe (Square piece) = Just piece
-
 isOnBoard :: BoardPosition -> Bool
 isOnBoard pos = fst pos >= fst minPosition &&
                 snd pos >= snd minPosition &&
