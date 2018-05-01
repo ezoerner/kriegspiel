@@ -67,7 +67,7 @@ findPositionWithPiece bord BoardView{bbox, orient} point playerTurn =
     maybeBoardPos = toBoardPosition bbox point orient
   in
     maybeBoardPos >>= \testPos ->
-        bord `pieceAt` toCoord testPos >>= \(Piece clr _) ->
+        bord `pieceAt` toStringCoord testPos >>= \(Piece clr _) ->
         guard (clr == playerTurn) >>
         return testPos
 
@@ -82,20 +82,6 @@ toBoardPosition bbox (V2 x y) playerOrient = let
 
 toBoardLocal :: V2 Double -> BoundingSquare -> V2 Double
 toBoardLocal globalV2 bbox = globalV2 - topLeft bbox
-
-toCoord :: BoardPosition -> String
-toCoord (file, rank) = file : show rank
-
-toCoordMove :: BoardPosition -> BoardPosition -> String
-toCoordMove fromPos toPos = toCoord fromPos ++ "-" ++ toCoord toPos
-
-toCoordMovePromote :: BoardPosition -> BoardPosition -> PieceType -> String
-toCoordMovePromote fromPos toPos pieceType =
-  let
-    showPieceType Knight = "N"
-    showPieceType pieceTyp = [head $ show pieceTyp]
-  in
-    toCoordMove fromPos toPos ++ "=" ++ showPieceType pieceType
 
 findPawnTries :: GameState -> Color -> [BoardPosition]
 findPawnTries gameState thisPlayer =
@@ -112,8 +98,8 @@ findPawnTries gameState thisPlayer =
                          ],
         let pawnTry = coordsToBoardPosition pawnTryCoords,
         let fromPos = coordsToBoardPosition coords,
-        let moveSpec = toCoordMove fromPos pawnTry,
-        let moveSpecWithPromotion = toCoordMovePromote fromPos pawnTry Queen,
+        let moveSpec = toStringMove fromPos pawnTry,
+        let moveSpecWithPromotion = toStringMovePromote fromPos pawnTry Queen,
         isLegalMove gameState moveSpec || isLegalMove gameState moveSpecWithPromotion
     ]
 
@@ -164,7 +150,7 @@ checkText helmColor checks =
     showCheck KnightCheck = "Check from a Knight"
     showCheck ckType = show ckType ++ " check"
   in
-    height 30 . color helmColor . toText . showCheck . checkType <$> checks
+    height 30 . color helmColor . toText . showCheck <$> checks
 
 moveAttemptText :: HelmColor.Color
                 -> MoveAttempt
@@ -277,7 +263,7 @@ boardForm lightSquare darkSquare BoardView{bbox, orient} pawnTries =
         else baseForm
   in
     HGfx.toForm $ HGfx.collage [HGfx.move (V2 hOff vOff) $ mkForm x y
-                                | x <- [0..7]
+                                | x <- [0..7] -- ^ x
                                 , y <- [0..7]
                                 , let hOff = x * ssize
                                 , let vOff = y * ssize
@@ -356,7 +342,3 @@ toOffset (file, rank) White ssize =
     (fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)) * pure ssize
 toOffset (file, rank) Black ssize =
     (fromIntegral <$> V2 (ord file - ord 'a') (rank - 1)) * pure ssize
-
-coordsToBoardPosition :: Coordinates -> BoardPosition
-coordsToBoardPosition (coordRank, coordFile) =
-    (chr $ ord 'a' + coordFile, 8 - coordRank)

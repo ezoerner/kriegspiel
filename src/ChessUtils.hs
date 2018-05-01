@@ -4,6 +4,8 @@ import Chess
 import Data.Array
 import Data.Char
 import Data.Maybe
+import Data.Maybe.HT (toMaybe)
+import Data.List (nub)
 
 type File = Char
 type Rank = Int
@@ -18,13 +20,8 @@ data MoveAttempt = Successful | Illegal | Impossible
 data Scores = Scores { white :: Integer, black :: Integer }
     deriving (Show)
 
-data Check = Check
-    { fromPos :: !BoardPosition
-    , toPos :: !BoardPosition
-    } deriving (Show)
-
-data CheckType = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
-    deriving (Show)
+data Check = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
+    deriving (Show, Eq)
 
 data GameOver = Checkmate { winner :: !Color } | Draw DrawReason
     deriving (Show)
@@ -32,56 +29,124 @@ data GameOver = Checkmate { winner :: !Color } | Draw DrawReason
 data DrawReason = Stalemate | Repetition | InsufficientForce | FiftyMove
     deriving (Show)
 
-checkType :: Check -> CheckType
-checkType Check{fromPos = (fromFile, fromRank), toPos = (toFile, toRank)}
-    | fromFile == toFile = Vertical
-    | fromRank == toRank = Horizontal
-    | ord fromFile - ord toFile == fromRank - toRank = LongDiagonal -- TO DO differentiate between long and short diagonal
-    | otherwise = KnightCheck
-
 opponent :: Color -> Color
 opponent White = Black
 opponent Black = White
 
-squareThreatenedBy :: Board -> Color -> Coordinates -> Maybe BoardPosition
-squareThreatenedBy bord opponentPlayer coords = undefined
+findChecks :: Board     -- ^ the Board
+           -> Color     -- ^ player color
+           -> [Check]   -- ^ Checks
+findChecks bord thisPlayer =
+  let
+    coords = getKingSquare bord thisPlayer
+    opponentPlayer = opponent thisPlayer
+    knightSquares = map (sumSquares coords) knightPattern
+    knightsThreaten = any isOpponentKnight knightSquares
+    isOpponentKnight square = case getPiece bord square of
+                                      Just (Piece player Knight) -> player == opponentPlayer
+                                      _ -> False
 
-isSquareThreatened :: Board -> Color -> Coordinates -> Bool
-isSquareThreatened bord opponentPlayer coords = knightsThreaten || pawnsThreaten || otherPiecesThreaten || kingsThreaten || rookOrQueenThreatens || bishopOrQueenThreatens
-        where knightSquares = map (sumSquares coords) knightPattern
-              knightsThreaten = any isOpponentKnight knightSquares
-              isOpponentKnight square = case getPiece bord square of
-                                                Just (Piece player Knight) -> player == opponentPlayer
-                                                _ -> False
-              pawnsThreaten = any isOpponentPawn $ map (sumSquares coords) pawnSquares
-              pawnSquares = case opponentPlayer of
-                                    White -> [(1, -1), (1, 1)]
-                                    Black -> [(-1, -1), (-1, 1)]
-              isOpponentPawn square = case getPiece bord square of
-                                              Just (Piece player Pawn) -> player == opponentPlayer
-                                              _ -> False
-              otherPiecesThreaten = False
-              kingSquares = map (sumSquares coords) queenPattern
-              kingsThreaten = any isOpponentKing kingSquares
-              isOpponentKing square  = case getPiece bord square of
-                                                Just (Piece player King) -> player == opponentPlayer
-                                                _ -> False
-              potentialOpponentRookQueenPieces = mapMaybe (firstPieceInSquareList bord . iterateDirectionInsideBoard coords) rookPattern
-              rookOrQueenThreatens = any isOpponentRookOrQueen potentialOpponentRookQueenPieces
-              isOpponentRookOrQueen (Piece color piecetype) = color == opponentPlayer && piecetype `elem` [Rook, Queen]
-              potentialOpponentBishopQueenPieces = mapMaybe (firstPieceInSquareList bord . iterateDirectionInsideBoard coords) bishopPattern
-              bishopOrQueenThreatens = any isOpponentBishopOrQueen potentialOpponentBishopQueenPieces
-              isOpponentBishopOrQueen (Piece color piecetype) = color == opponentPlayer && piecetype `elem` [Bishop, Queen]
+    threateningPawnSquares = filter isOpponentPawn $ map (sumSquares coords) pawnSquares
+    pawnSquares = case opponentPlayer of
+      White -> [(1, -1), (1, 1)]
+      Black -> [(-1, -1), (-1, 1)]
+    isOpponentPawn square = case getPiece bord square of
+                                    Just (Piece player Pawn) -> player == opponentPlayer
+                                    _ -> False
 
+    potentialOpponentRookQueenPieceSquares = mapMaybe (firstPieceInSquareList bord . iterateDirectionInsideBoard coords) rookPattern
+    threateningRookOrQueenSquares = snd <$> filter (isOpponentRookOrQueen . fst) potentialOpponentRookQueenPieceSquares
+    isOpponentRookOrQueen (Piece color piecetype) = color == opponentPlayer && piecetype `elem` [Rook, Queen]
+
+    potentialOpponentBishopQueenPieceSquares = mapMaybe (firstPieceInSquareList bord . iterateDirectionInsideBoard coords) bishopPattern
+    threateningBishopOrQueenSquares = snd <$> filter (isOpponentBishopOrQueen . fst) potentialOpponentBishopQueenPieceSquares
+    isOpponentBishopOrQueen (Piece color piecetype) = color == opponentPlayer && piecetype `elem` [Bishop, Queen]
+  in
+    nub $ catMaybes
+    [ knightsThreaten `toMaybe` KnightCheck
+    , anyOnLongDiagonal threateningPawnSquares coords `toMaybe` LongDiagonal
+    , anyOnShortDiagonal threateningPawnSquares coords `toMaybe` ShortDiagonal
+    , anyOnHorizontal threateningRookOrQueenSquares coords `toMaybe` Horizontal
+    , anyOnVertical threateningRookOrQueenSquares coords `toMaybe` Vertical
+    , anyOnLongDiagonal threateningBishopOrQueenSquares coords `toMaybe` LongDiagonal
+    , anyOnShortDiagonal threateningBishopOrQueenSquares coords `toMaybe` ShortDiagonal
+    ]
+
+anyOnLongDiagonal :: [Coordinates] -> Coordinates -> Bool
+anyOnLongDiagonal = undefined
+
+anyOnShortDiagonal :: [Coordinates] -> Coordinates -> Bool
+anyOnShortDiagonal = undefined
+
+anyOnHorizontal :: [Coordinates] -> Coordinates -> Bool
+anyOnHorizontal = undefined
+
+anyOnVertical :: [Coordinates] -> Coordinates -> Bool
+anyOnVertical = undefined
+
+onLongDiagonal :: Coordinates -> Coordinates -> Bool
+onLongDiagonal refCoords testCoords
+    | not (isOnDiagonal refCoords testCoords) = False
+    | isCorner refCoords = True
+    | otherwise = diagLength diag > diagLength otherDiag
+  where
+    diag = expandDiagonal refCoords testCoords
+    otherDiag = uncurry expandDiagonal $ otherDiagonal refCoords testCoords
+
+isCorner :: Coordinates -> Bool
+isCorner (x, y) = (x == 0 || x == 7) && (y == 0 || y == 7)
+
+diagLength :: (Coordinates, Coordinates) -> Int
+diagLength ((x1, _), (x2, _)) = abs (x1 - x2)
+
+otherDiagonal :: Coordinates -> Coordinates -> (Coordinates, Coordinates)
+otherDiagonal coords1@(x1, y1) (x2, y2) =
+  let
+    (dirX, dirY) = unitDirection (x1, y1) (x2 ,y2)
+    otherCoords = if isInsideBoard (sumSquares coords1 (-dirX, dirY))
+                  then sumSquares coords1 (-dirX, dirY)
+                  else sumSquares coords1 (dirX, -dirY)
+  in
+    expandDiagonal coords1 otherCoords
+
+expandDiagonal :: Coordinates -> Coordinates -> (Coordinates, Coordinates)
+expandDiagonal coords1 coords2 =
+  let
+    direction1 = unitDirection coords1 coords2
+    endpoint1 = last $ iterateDirectionInsideBoardInclusive coords2 direction1
+    endpoint2 = last $ iterateDirectionInsideBoardInclusive coords1 $ oppositeDirection direction1
+  in
+    (endpoint1, endpoint2)
+
+unitDirection :: Coordinates -- ^ from
+              -> Coordinates -- ^ to
+              -> (Int, Int)
+unitDirection (rank1, file1) (rank2, file2) =
+    (signum (rank2 - rank1), signum (file2 - file1))
+
+oppositeDirection :: (Int, Int) -> (Int, Int)
+oppositeDirection (x, y) = (-x, -y)
+
+isOnDiagonal :: Coordinates -> Coordinates -> Bool
+isOnDiagonal (rank1, file1) (rank2, file2) =
+    rank2 - rank1 /= 0 &&
+        abs (rank2 - rank1) == abs (file2 - file1)
 
 sumSquares :: (Int, Int) -> (Int, Int) -> (Int, Int)
 sumSquares (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
 
 getPiece :: Board -> Coordinates -> Maybe Piece
-getPiece bord coordinates | inRange (bounds bord) coordinates = f $ bord ! coordinates
-                           where f Empty = Nothing
-                                 f (Square piece) = Just piece
+getPiece bord coordinates
+    | inRange (bounds bord) coordinates = f $ bord ! coordinates
+  where
+    f Empty = Nothing
+    f (Square piece) = Just piece
 getPiece _ _ = Nothing
+
+getKingSquare :: Board -> Color -> Coordinates
+getKingSquare bord player = fromJust $ rlookup (Square (Piece player King)) $ assocs bord
+        where rlookup x = lookup x . map swap
+              swap (x, y) = (y, x)
 
 queenPattern :: [(Int, Int)]
 queenPattern = rookPattern ++ bishopPattern
@@ -95,17 +160,52 @@ bishopPattern = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
 knightPattern :: [(Int, Int)]
 knightPattern = [(-2, -1), (-1, -2), (1, -2), (2, -1), (-2, 1), (-1, 2), (1, 2), (2, 1)]
 
-firstPieceInSquareList :: Board -> [Coordinates] -> Maybe Piece
+firstPieceInSquareList :: Board -> [Coordinates] -> Maybe (Piece, Coordinates)
 firstPieceInSquareList bord coordinates = case firstNonEmpty of
-                                                   [] -> Nothing
-                                                   (coordinate:_) -> getPiece bord coordinate
-        where firstNonEmpty = dropWhile (isEmpty bord) coordinates
+    [] -> Nothing
+    (coordinate : _) -> (\piece -> (piece , coordinate)) <$> getPiece bord coordinate
+  where firstNonEmpty = dropWhile (isEmpty bord) coordinates
 
 isEmpty :: Board -> Coordinates -> Bool
 isEmpty bord coordinates = isNothing $ getPiece bord coordinates
 
 iterateDirectionInsideBoard :: Coordinates -> (Int, Int) -> [Coordinates]
-iterateDirectionInsideBoard start direction = tail $ takeWhile isInsideBoard $ iterate (sumSquares direction) start
+iterateDirectionInsideBoard start direction =
+  tail $ iterateDirectionInsideBoardInclusive start direction
+
+iterateDirectionInsideBoardInclusive :: Coordinates -> (Int, Int) -> [Coordinates]
+iterateDirectionInsideBoardInclusive start direction =
+    takeWhile isInsideBoard $ iterate (sumSquares direction) start
 
 isInsideBoard :: Coordinates -> Bool
 isInsideBoard (i, j) = i >= 0 && i <= 7 && j >= 0 && j <= 7
+
+
+toStringCoord :: BoardPosition -> String
+toStringCoord (file, rank) = file : show rank
+
+toStringMove :: BoardPosition -> BoardPosition -> String
+toStringMove fromPos toPos = toStringCoord fromPos ++ "-" ++ toStringCoord toPos
+
+toStringMovePromote :: BoardPosition -> BoardPosition -> PieceType -> String
+toStringMovePromote fromPos toPos pieceType =
+  let
+    showPieceType Knight = "N"
+    showPieceType pieceTyp = [head $ show pieceTyp]
+  in
+    toStringMove fromPos toPos ++ "=" ++ showPieceType pieceType
+
+coordsToBoardPosition :: Coordinates -> BoardPosition
+coordsToBoardPosition (rank, file) = (chr $ file + ord 'a', 8 - rank)
+
+toCoordinates :: BoardPosition -> Coordinates
+toCoordinates (file, rank) = (8 - rank, ord file - ord 'a')
+
+parseCoordinate :: String -> Maybe Coordinates
+parseCoordinate [column, row] | isInsideBoard coordinates = Just coordinates
+                                    | otherwise = Nothing
+    where coordinates = (ord '8' - ord row, ord column - ord 'a')
+parseCoordinate _ = Nothing
+
+printCoordinate :: Coordinates -> String
+printCoordinate (r, c) = [chr (ord 'a' + c), intToDigit (8 - r)]

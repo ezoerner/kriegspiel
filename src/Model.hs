@@ -83,7 +83,7 @@ dropPiece model@Model
   let
     localPoint = toBoardLocal (fromIntegral <$> globalPoint) bbox
     maybeToPos = toBoardPosition bbox localPoint orient
-    maybeTargetCoordMove = toCoordMove dragPos <$> maybeToPos
+    maybeTargetCoordMove = toStringMove dragPos <$> maybeToPos
     maybeNext = maybeTargetCoordMove >>= move gameState
   in
     case maybeNext of
@@ -106,7 +106,7 @@ dropPiece model _ = model -- Nothing in motion
 promote :: Model -> PieceType -> Model
 promote model@Model{gameState, playerState = PromotionPrompt fromPos toPos} pieceType =
   let
-    coordMove = toCoordMovePromote fromPos toPos pieceType
+    coordMove = toStringMovePromote fromPos toPos pieceType
     newGameState = fromJust $ move gameState coordMove -- state machine guarantees a Just
   in
     endTurn $ model{gameState = newGameState}
