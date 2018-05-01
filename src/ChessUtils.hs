@@ -21,10 +21,16 @@ data Check = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck
     deriving (Show, Eq)
 
 data GameOver = Checkmate { winnerColor :: !Color } | Draw DrawReason
-    deriving (Show)
+
+instance Show GameOver where
+  show (Checkmate winColor) = "Checkmate! " ++ show winColor ++ " wins!"
+  show (Draw drawReason) = "Draw due to " ++ show drawReason
 
 data DrawReason = Stalemate | InsufficientForce
-    deriving (Show)
+
+instance Show DrawReason where
+  show Stalemate = "Stalemate"
+  show InsufficientForce = "Insufficient Force"
 
 isGameOver :: GameState -> Bool
 isGameOver = isJust . maybeGameOver

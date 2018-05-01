@@ -145,14 +145,12 @@ moveAttemptText helmColor moveAttempt =
 toMoveText :: HelmColor.Color
            -> GameState
            -> Text
-toMoveText
-    helmColor
-    gameState =
+toMoveText helmColor gameState =
   let
     currPlayer = currentPlayer gameState
     showToMove = case maybeGameOver gameState of
         Nothing -> " To Move: " ++ show currPlayer
-        Just gameOver -> show gameOver -- TODO improve this show string
+        Just gameOver -> show gameOver
   in
     height 30 $ color helmColor $ toText showToMove
 
