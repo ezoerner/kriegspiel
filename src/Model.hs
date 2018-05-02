@@ -96,8 +96,9 @@ dropPiece model@Model
                 { boardView = boardView{posInMotion = Nothing} }
                 maybeResult
           in
-            newModel {lastMoveAttempt =
-                Illegal pc dragPos maybeToPos}
+            if any (== dragPos) maybeToPos -- ignore move to same square
+            then newModel
+            else newModel {lastMoveAttempt = Illegal pc dragPos maybeToPos}
 
 dropPiece model _ = model -- Nothing in motion
 

@@ -138,9 +138,8 @@ moveAttemptText helmColor moveAttempt =
   let
     showLastMoveAttempt Successful = []
     showLastMoveAttempt (Illegal (Piece _ pieceType) from (Just to)) =
-        [ "Sorry, you are not"
-        , "allowed to move " ++ show pieceType
-        , "from " ++ toStringCoord from ++ " to " ++ toStringCoord to
+        [ "Move not legal: "
+        , show pieceType ++ " " ++ toStringMove from to
         ]
     showLastMoveAttempt (Illegal (Piece _ pieceType) from Nothing) =
         [ "Not Allowed to move"
@@ -213,7 +212,10 @@ boardForm :: Engine e => Image e
           -> BoardView
           -> [BoardPosition]
           -> HGfx.Form e
-boardForm lightSquare darkSquare BoardView{bbox, orient} pawnTries =
+boardForm lightSquare darkSquare BoardView
+    { bbox = bbox@BSquare{ width, topLeft = V2 top left }
+    , orient
+    } pawnTries =
   let
     ssize = squareSize bbox
     imageDims = V2 ssize ssize
@@ -231,7 +233,7 @@ boardForm lightSquare darkSquare BoardView{bbox, orient} pawnTries =
     chooseImage x y = if floor (x + y) `mod` (2 :: Integer) == pivot orient
                       then lightSquare
                       else darkSquare
-    mkForm x y =
+    mkSquareForm x y =
       let
         baseForm = HGfx.image imageDims $ chooseImage x y
         isPawnTry = toPos x y `elem` pawnTries
@@ -239,13 +241,27 @@ boardForm lightSquare darkSquare BoardView{bbox, orient} pawnTries =
         if isPawnTry
         then HGfx.group [baseForm, pawnTryForm]
         else baseForm
+    mkRankLabel y = HGfx.text $ height 15 $ color (HelmColor.rgb (33/255) (118/255) $ 199/255) $
+        toText $ show $ if orient == White then 8 - y else y + 1
+    mkFileLabel x = HGfx.text $ height 15 $ color (HelmColor.rgb (33/255) (118/255) $ 199/255) $
+        toText [chr $ ord 'a' + x]
   in
-    HGfx.toForm $ HGfx.collage [HGfx.move (V2 hOff vOff) $ mkForm x y
-                                | x <- [0..7] -- ^ x
-                                , y <- [0..7]
-                                , let hOff = x * ssize
-                                , let vOff = y * ssize
-                                ]
+    HGfx.toForm $ HGfx.collage $ [ HGfx.move (V2 hOff vOff) $ mkRankLabel $ floor y
+                                 | y <- [0..7]
+                                 , let vOff = y * ssize + (ssize/2)
+                                 , let hOff = -10
+                                 ] ++
+                                 [ HGfx.move (V2 hOff vOff) $ mkFileLabel $ floor x
+                                 | x <- [0..7]
+                                 , let hOff = x * ssize + (ssize/2)
+                                 , let vOff = width + 20
+                                 ] ++
+                                 [ HGfx.move (V2 hOff vOff) $ mkSquareForm x y
+                                 | x <- [0..7] -- ^ x
+                                 , y <- [0..7]
+                                 , let hOff = x * ssize
+                                 , let vOff = y * ssize
+                                 ]
 
 piecesForm :: Engine e => PlayerState -> GameState -> Options -> BoardView ->
     M.Map String (Image e) -> V2 Int -> HGfx.Form e
