@@ -45,7 +45,6 @@ rotateBoard model@Model{boardView = boardView@BoardView{orient = Black}}
 rotateBoard model@Model{boardView = boardView@BoardView{orient = White}}
     = model{boardView = boardView{orient = Black}}
 
-
 startDragPiece :: Model -> V2 Int -> Model
 startDragPiece model@Model
     { boardView = boardView@BoardView{bbox}
@@ -83,16 +82,23 @@ dropPiece model@Model
             endTurn model{ gameState = nextGameState
                   , boardView = boardView{posInMotion = Nothing}
                   }
-        Nothing ->
-          let maybeResult = maybeTargetCoordMove >>= \targetCoordMove ->
+        Nothing -> -- failed on-board move
+          let
+            pc = fromJust $ pieceAt (board gameState) $ toStringCoord dragPos
+            maybeResult = maybeTargetCoordMove >>= \targetCoordMove ->
                 if canPromote gameState targetCoordMove
                     then Just model
                         { playerState = PromotionPrompt dragPos (fromJust maybeToPos)
                         , boardView = boardView{posInMotion = Nothing
                         }}
                     else Nothing
+            newModel = fromMaybe model
+                { boardView = boardView{posInMotion = Nothing} }
+                maybeResult
           in
-            fromMaybe model{boardView = boardView{posInMotion = Nothing}} maybeResult
+            newModel {lastMoveAttempt =
+                Illegal pc dragPos maybeToPos}
+
 dropPiece model _ = model -- Nothing in motion
 
 promote :: Model -> PieceType -> Model
@@ -122,4 +128,5 @@ endTurn model@Model
     model
       { playerState = nextPlayerState
       , boardView=boardView{orient = nextOrient}
+      , lastMoveAttempt = Successful
       }

@@ -137,8 +137,16 @@ moveAttemptText :: HelmColor.Color
 moveAttemptText helmColor moveAttempt =
   let
     showLastMoveAttempt Successful = []
-    showLastMoveAttempt Illegal = ["No"]
-    showLastMoveAttempt Impossible = ["Hell, No!"]
+    showLastMoveAttempt (Illegal (Piece _ pieceType) from (Just to)) =
+        [ "Sorry, you are not"
+        , "allowed to move " ++ show pieceType
+        , "from " ++ toStringCoord from ++ " to " ++ toStringCoord to
+        ]
+    showLastMoveAttempt (Illegal (Piece _ pieceType) from Nothing) =
+        [ "Not Allowed to move"
+        , show pieceType
+        , "  from " ++ toStringCoord from ++ " to off the board"
+        ]
   in
     height 30 . color helmColor . toText <$> showLastMoveAttempt moveAttempt
 

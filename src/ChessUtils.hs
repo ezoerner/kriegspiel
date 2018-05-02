@@ -11,7 +11,7 @@ type File = Char
 type Rank = Int
 type BoardPosition = (File, Rank)
 
-data MoveAttempt = Successful | Illegal | Impossible
+data MoveAttempt = Successful | Illegal Piece BoardPosition (Maybe BoardPosition)
     deriving (Show)
 
 data Scores = Scores { white :: Integer, black :: Integer }
