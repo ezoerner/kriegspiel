@@ -45,44 +45,48 @@ rotateBoard model@Model { boardView = boardView@BoardView { orient = White } }
 
 startDragPiece :: Model -> V2 Int -> Model
 startDragPiece model@Model { boardView = boardView@BoardView { bbox }, gameState } globalPoint
-    = let localPoint    = toBoardLocal (fromIntegral <$> globalPoint) bbox
-          maybeCoords = findPositionWithPiece
-            (board gameState)
-            boardView
-            localPoint
-            (currentPlayer gameState)
+    = let localPoint  = toBoardLocal (fromIntegral <$> globalPoint) bbox
+          maybeCoords = findPositionWithPiece (board gameState)
+                                              boardView
+                                              localPoint
+                                              (currentPlayer gameState)
           newBoardView coords = boardView { coordsInMotion = Just coords }
       in  if isGameOver gameState
               then model
               else case maybeCoords of
-                  Nothing       -> model
+                  Nothing     -> model
                   Just coords -> model { boardView = newBoardView coords }
 
 dropPiece :: Model -> V2 Int -> Model
-dropPiece model@Model
-    { boardView = boardView@BoardView { bbox, orient, coordsInMotion = Just dragCoords }
-    , gameState
-    } globalPoint
+dropPiece model@Model { boardView = boardView@BoardView { bbox, orient, coordsInMotion = Just dragCoords }, gameState } globalPoint
     = let
-          localPoint = toBoardLocal (fromIntegral <$> globalPoint) bbox
+          localPoint    = toBoardLocal (fromIntegral <$> globalPoint) bbox
           maybeToCoords = pointToCoords bbox localPoint orient
-          maybeTargetCoordMove = (\to -> printMove dragCoords to Nothing) <$> maybeToCoords
-          maybeNextState            = maybeTargetCoordMove >>= move gameState
+          maybeTargetCoordMove =
+              (\to -> printMove dragCoords to Nothing) <$> maybeToCoords
+          maybeNextState = maybeTargetCoordMove >>= move gameState
           wasToSameSquare = dragCoords `elem` maybeToCoords
-          pc = fromJust $ pieceAt (board gameState) $ printCoordinate dragCoords
-          stopDragModel = model {boardView = boardView { coordsInMotion = Nothing}}
-          promotionModel = stopDragModel{playerState =
-            PromotionPrompt dragCoords (fromJust maybeToCoords)}
-          illegalMoveModel = stopDragModel{lastMoveAttempt =
-            Illegal pc dragCoords maybeToCoords}
+          pc = fromJust $ pieceAt (board gameState) $ printCoordinate
+              dragCoords
+          stopDragModel =
+              model { boardView = boardView { coordsInMotion = Nothing } }
+          promotionModel = stopDragModel
+              { playerState = PromotionPrompt dragCoords
+                                              (fromJust maybeToCoords)
+              }
+          illegalMoveModel = stopDragModel
+              { lastMoveAttempt = Illegal pc dragCoords maybeToCoords
+              }
           checkForPromotion targetMove
-            | canPromote gameState targetMove = promotionModel
-            | wasToSameSquare = stopDragModel
-            | otherwise = illegalMoveModel
+              | canPromote gameState targetMove = promotionModel
+              | wasToSameSquare                 = stopDragModel
+              | otherwise                       = illegalMoveModel
       in
           case maybeNextState of
-              Just nextGameState -> endTurn stopDragModel { gameState = nextGameState }
-              Nothing -> maybe stopDragModel checkForPromotion maybeTargetCoordMove
+              Just nextGameState ->
+                  endTurn stopDragModel { gameState = nextGameState }
+              Nothing ->
+                  maybe stopDragModel checkForPromotion maybeTargetCoordMove
 dropPiece model _ = model -- Nothing in motion
 
 promote :: Model -> PieceType -> Model
