@@ -39,7 +39,7 @@ data BoundingSquare = BSquare
 data BoardView = BoardView
     { bbox :: !BoundingSquare
     , orient :: !Color
-    , posInMotion :: !(Maybe BoardPosition)
+    , coordsInMotion :: !(Maybe Coordinates)
     }
     deriving (Show)
 
@@ -47,14 +47,14 @@ data PlayerState =
     Playing |
     HotSeatWait |
     HotSeatBlank |
-    PromotionPrompt BoardPosition BoardPosition
+    PromotionPrompt Coordinates Coordinates
   deriving (Show, Eq)
 
 initialBoardView :: V2 Int -> BoardView
 initialBoardView windowDims = BoardView
-    { bbox        = calcBoardBBox windowDims
-    , orient      = White
-    , posInMotion = Nothing
+    { bbox           = calcBoardBBox windowDims
+    , orient         = White
+    , coordsInMotion = Nothing
     }
 
 border :: Num a => V2 a
@@ -70,24 +70,20 @@ calcBoardBBox windowSize =
             }
 
 findPositionWithPiece
-    :: Board -> BoardView -> V2 Double -> Color -> Maybe BoardPosition
+    :: Board -> BoardView -> V2 Double -> Color -> Maybe Coordinates
 findPositionWithPiece bord BoardView { bbox, orient } point playerTurn =
-    let maybeBoardPos = toBoardPosition bbox point orient
-    in  maybeBoardPos >>= \testPos ->
-            bord `pieceAt` toStringCoord testPos >>= \(Piece clr _) ->
-                guard (clr == playerTurn) >> return testPos
+    let maybeCoords = pointToCoords bbox point orient
+    in  maybeCoords >>= \testCoords ->
+            bord `pieceAt` printCoordinate testCoords >>= \(Piece clr _) ->
+                guard (clr == playerTurn) >> return testCoords
 
-toBoardPosition :: BoundingSquare -> V2 Double -> Color -> Maybe BoardPosition
-toBoardPosition bbox (V2 x y) playerOrient
-    = let
-          ssize = squareSize bbox
-          tryPos White =
-              (chr $ ord 'a' + floor (x / ssize), 8 - floor (y / ssize))
-          tryPos Black =
-              (chr $ ord 'a' + floor (x / ssize), floor (y / ssize) + 1)
-          thisTryPos = tryPos playerOrient
-      in
-          isOnBoard thisTryPos `toMaybe` thisTryPos
+pointToCoords :: BoundingSquare -> V2 Double -> Color -> Maybe Coordinates
+pointToCoords bbox (V2 x y) playerOrient =
+    let ssize = squareSize bbox
+        tryCoords White = (floor (y / ssize), floor (x / ssize))
+        tryCoords Black = (7 - floor (y / ssize), floor (x / ssize))
+        thisTryCoords = tryCoords playerOrient
+    in  isInsideBoard thisTryCoords `toMaybe` thisTryCoords
 
 toBoardLocal :: V2 Double -> BoundingSquare -> V2 Double
 toBoardLocal globalV2 bbox = globalV2 - topLeft bbox
@@ -141,11 +137,13 @@ moveAttemptText :: HelmColor.Color -> MoveAttempt -> [Text]
 moveAttemptText helmColor moveAttempt =
     let showLastMoveAttempt Successful = []
         showLastMoveAttempt (Illegal (Piece _ pieceType) from (Just to)) =
-            ["Move not legal: ", show pieceType ++ " " ++ toStringMove from to]
+            [ "Move not legal: "
+            , show pieceType ++ " " ++ printMove from to Nothing
+            ]
         showLastMoveAttempt (Illegal (Piece _ pieceType) from Nothing) =
             [ "Not Allowed to move"
             , show pieceType
-            , "  from " ++ toStringCoord from ++ " to off the board"
+            , "  from " ++ printCoordinate from ++ " to off the board"
             ]
     in  height 30 . color helmColor . toText <$> showLastMoveAttempt moveAttempt
 
@@ -205,17 +203,11 @@ boardForm
     => Image e
     -> Image e
     -> BoardView
-    -> [BoardPosition]
+    -> [Coordinates]
     -> HGfx.Form e
 boardForm lightSquare darkSquare BoardView { bbox = bbox@BSquare { width }, orient } pawnTries
-    = let
-          ssize     = squareSize bbox
+    = let ssize     = squareSize bbox
           imageDims = V2 ssize ssize
-          pivot White = 0
-          pivot Black = 1
-          toPos x y = if orient == White
-              then (chr (floor x + ord 'a'), 8 - floor y)
-              else (chr (floor x + ord 'a'), floor y + 1)
           pawnTryForm =
             -- TODO attempt to vertically center text form inside group
             -- doesn't work, bug in Helm?
@@ -225,16 +217,12 @@ boardForm lightSquare darkSquare BoardView { bbox = bbox@BSquare { width }, orie
                   $ color (HelmColor.rgb 1 1 1)
                   $ bold
                   $ toText "pawn try"
-          chooseImage x y =
-              if floor (x + y) `mod` (2 :: Integer) == pivot orient
-                  then lightSquare
-                  else darkSquare
-          mkSquareForm x y =
-              let baseForm  = HGfx.image imageDims $ chooseImage x y
-                  isPawnTry = toPos x y `elem` pawnTries
-              in  if isPawnTry
-                      then HGfx.group [baseForm, pawnTryForm]
-                      else baseForm
+          sqTypes = squareTypes pawnTries
+          sqForm Light = HGfx.image imageDims lightSquare
+          sqForm Dark  = HGfx.image imageDims darkSquare
+          buildForm (sqColor, False) = sqForm sqColor
+          buildForm (sqColor, True ) = HGfx.group [sqForm sqColor, pawnTryForm]
+          mkSquareForm coords = buildForm (sqTypes M.! coords)
           mkRankLabel y =
               HGfx.text
                   $ height 15
@@ -247,10 +235,9 @@ boardForm lightSquare darkSquare BoardView { bbox = bbox@BSquare { width }, orie
                   $ height 15
                   $ color (HelmColor.rgb (33 / 255) (118 / 255) $ 199 / 255)
                   $ toText [chr $ ord 'a' + x]
-      in
-          HGfx.toForm
+      in  HGfx.toForm
           $  HGfx.collage
-          $  [ HGfx.move (V2 hOff vOff) $ mkRankLabel $ floor y
+          $  [ HGfx.move (V2 hOff vOff) $ mkRankLabel (floor y :: Integer)
              | y <- [0 .. 7]
              , let vOff = y * ssize + (ssize / 2)
              , let hOff = -10
@@ -260,12 +247,29 @@ boardForm lightSquare darkSquare BoardView { bbox = bbox@BSquare { width }, orie
              , let hOff = x * ssize + (ssize / 2)
              , let vOff = width + 20
              ]
-          ++ [ HGfx.move (V2 hOff vOff) $ mkSquareForm x y
-             | x <- [0 .. 7] -- ^ x
-             , y <- [0 .. 7]
-             , let hOff = x * ssize
-             , let vOff = y * ssize
+          ++ [ HGfx.move offset $ mkSquareForm coords
+             | file <- [0 .. 7]
+             , rank <- [0 .. 7]
+             , let coords = (rank, file)
+             , let offset = toOffset coords orient ssize
              ]
+
+data SquareColor = Light | Dark
+        deriving (Show, Eq)
+type SquareType = (SquareColor, Bool) -- ^ bool is hasPawnTry
+
+squareTypes
+    :: [Coordinates]                -- ^ pawnTries
+    -> M.Map Coordinates SquareType -- ^ square types
+squareTypes pawnTries = M.fromList
+    [ (coord, squareType)
+    | rank <- [0 .. 7]
+    , file <- [0 .. 7]
+    , let coord       = (rank, file)
+    , let hasPawnTry  = coord `elem` pawnTries
+    , let squareColor = if (rank + file) `mod` 2 == 0 then Light else Dark
+    , let squareType = (squareColor, hasPawnTry)
+    ]
 
 piecesForm
     :: Engine e
@@ -276,7 +280,7 @@ piecesForm
     -> M.Map String (Image e)
     -> V2 Int
     -> HGfx.Form e
-piecesForm playerState gameState Options { gameVariant } BoardView { bbox, orient, posInMotion } assets mousePos
+piecesForm playerState gameState Options { gameVariant } BoardView { bbox, orient, coordsInMotion } assets mousePos
     = let
           showColor clr = toLower (head $ show clr)
           showPieceType pieceType = toLower <$> show pieceType
@@ -288,20 +292,20 @@ piecesForm playerState gameState Options { gameVariant } BoardView { bbox, orien
           mkForm piece = HGfx.image imageDims $ chooseImage piece
 
           -- sort pieces so moving or promoting piece is on top
-          sortF :: PlayerState -> BoardPosition -> Bool
-          sortF (PromotionPrompt _ toPos) thisPos =
+          sortF :: PlayerState -> Coordinates -> Bool
+          sortF (PromotionPrompt _ toCoords) thisCoords =
               (do
-                      p <- posInMotion
-                      return $ p == thisPos || toPos == thisPos
+                      p <- coordsInMotion
+                      return $ p == thisCoords || toCoords == thisCoords
                   )
                   == Just True
-          sortF _ thisPos = Just thisPos == posInMotion
+          sortF _ thisCoords = Just thisCoords == coordsInMotion
 
-          pieceImage boardPosition piece
-              | (PromotionPrompt fromPos toPos) <- playerState
-              , boardPosition == fromPos
-              = HGfx.move (toOffset toPos orient ssize) $ mkForm piece
-              | posInMotion == Just boardPosition
+          pieceImage coords piece
+              | (PromotionPrompt fromCoords toCoords) <- playerState
+              , coords == fromCoords
+              = HGfx.move (toOffset toCoords orient ssize) $ mkForm piece
+              | coordsInMotion == Just coords
               = HGfx.move
                       ( toBoardLocal (fromIntegral <$> mousePos) bbox
                       - imageDims
@@ -309,10 +313,10 @@ piecesForm playerState gameState Options { gameVariant } BoardView { bbox, orien
                       )
                   $ mkForm piece
               | otherwise
-              = HGfx.move (toOffset boardPosition orient ssize) $ mkForm piece
+              = HGfx.move (toOffset coords orient ssize) $ mkForm piece
 
           pieces
-              = [ (coordsToBoardPosition coords, piece)
+              = [ (coords, piece)
                 | (coords, square) <- assocs $ board gameState
                 , let maybePiece = squareToMaybe square
                 , isJust maybePiece
@@ -333,32 +337,16 @@ piecesForm playerState gameState Options { gameVariant } BoardView { bbox, orien
           HGfx.toForm imageCollage
 
 -- Private functions
-isOnBoard :: BoardPosition -> Bool
-isOnBoard pos =
-    fst pos
-        >= fst minPosition
-        && snd pos
-        >= snd minPosition
-        && fst pos
-        <= fst maxPosition
-        && snd pos
-        <= snd maxPosition
-
-minPosition :: BoardPosition
-minPosition = ('a', 1)
-
-maxPosition :: BoardPosition
-maxPosition = ('h', 8)
 
 squareSize :: BoundingSquare -> Double
 squareSize bbox = width bbox / 8
 
 toOffset
-    :: BoardPosition
+    :: Coordinates
     -> Color -- ^ orientation of the board
-    -> Double
+    -> Double -- ^ square size
     -> V2 Double
-toOffset (file, rank) White ssize =
-    (fromIntegral <$> V2 (ord file - ord 'a') (8 - rank)) * pure ssize
-toOffset (file, rank) Black ssize =
-    (fromIntegral <$> V2 (ord file - ord 'a') (rank - 1)) * pure ssize
+toOffset (rank, file) White ssize =
+    (fromIntegral <$> V2 file rank) * pure ssize
+toOffset (rank, file) Black ssize =
+    (fromIntegral <$> V2 file (7 - rank)) * pure ssize

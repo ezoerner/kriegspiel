@@ -1,4 +1,19 @@
-module ChessUtils where
+module ChessUtils
+    ( MoveAttempt(..)
+    , Scores(..)
+    , Check(..)
+    , GameOver(..)
+    , isGameOver
+    , maybeGameOver
+    , findPawnTries
+    , findChecks
+    , isInsideBoard
+    , printCoordinate
+    , printMove
+    , parseCoordinate
+    , squareToMaybe
+    )
+where
 
 import           Chess
 import           Data.Array
@@ -7,11 +22,7 @@ import           Data.Maybe
 import           Data.Maybe.HT                  ( toMaybe )
 import           Data.List                      ( nub )
 
-type File = Char
-type Rank = Int
-type BoardPosition = (File, Rank)
-
-data MoveAttempt = Successful | Illegal Piece BoardPosition (Maybe BoardPosition)
+data MoveAttempt = Successful | Illegal Piece Coordinates (Maybe Coordinates)
     deriving (Show)
 
 data Scores = Scores { white :: Integer, black :: Integer }
@@ -44,30 +55,22 @@ maybeGameOver gameState
     | otherwise = Nothing  -- Draw by Repetition or FiftyMove not implemented by hschesslib library
     -- TODO allow draw by agreement
 
-opponent :: Color -> Color
-opponent White = Black
-opponent Black = White
-
-findPawnTries :: GameState -> [BoardPosition]
+findPawnTries :: GameState -> [Coordinates]
 findPawnTries gameState
-    = [ pawnTry
-      | (coords@(coordRank, coordFile), square) <- assocs $ board gameState
+    = [ toCoords
+      | (fromCoords@(rank, file), square) <- assocs $ board gameState
       , square /= Empty
       , let (Piece clr pieceType) = fromJust (squareToMaybe square)
       , let thisPlayer            = currentPlayer gameState
+      , let direction = if thisPlayer == White then -1 else 1
       , pieceType == Pawn
       , clr == thisPlayer
-      , let direction = if thisPlayer == White then -1 else 1
-      , pawnTryCoords <-
-          [ (coordRank + direction, coordFile - 1)
-          , (coordRank + direction, coordFile + 1)
-          ]
-      , let pawnTry               = coordsToBoardPosition pawnTryCoords
-      , let fromPos               = coordsToBoardPosition coords
-      , let moveSpec              = toStringMove fromPos pawnTry
-      , let moveSpecWithPromotion = toStringMovePromote fromPos pawnTry Queen
-      , isLegalMove gameState moveSpec
-          || isLegalMove gameState moveSpecWithPromotion
+      , toCoords <- [(rank + direction, file - 1), (rank + direction, file + 1)]
+      , let moveString = printMove fromCoords toCoords Nothing
+      , let moveStringWithSomePromotion =
+                printMove fromCoords toCoords $ Just Queen
+      , isLegalMove gameState moveString ||
+            isLegalMove gameState moveStringWithSomePromotion
       ]
 
 findChecks :: GameState -> [Check]
@@ -125,6 +128,40 @@ findChecks gameState
                        potentialOpponentBishopQueenPieceSquares
     isOpponentBishopOrQueen (Piece color piecetype) =
         color == opponentPlayer && piecetype `elem` [Bishop, Queen]
+
+printMove :: Coordinates -> Coordinates -> Maybe PieceType -> String
+printMove fromCoords toCoords maybePromotionPieceType =
+    let showPieceType Knight   = "N"
+        showPieceType pieceTyp = [head $ show pieceTyp]
+    in  printCoordinate fromCoords
+        ++ "-"
+        ++ printCoordinate toCoords
+        ++ (case maybePromotionPieceType of
+               Nothing        -> ""
+               Just pieceType -> "=" ++ showPieceType pieceType
+           )
+
+printCoordinate :: Coordinates -> String
+printCoordinate (r, c) = [chr (ord 'a' + c), intToDigit (8 - r)]
+
+parseCoordinate :: String -> Maybe Coordinates
+parseCoordinate [column, row] | isInsideBoard coordinates = Just coordinates
+                              | otherwise                 = Nothing
+    where coordinates = (ord '8' - ord row, ord column - ord 'a')
+parseCoordinate _ = Nothing
+
+squareToMaybe :: Square -> Maybe Piece
+squareToMaybe Empty          = Nothing
+squareToMaybe (Square piece) = Just piece
+
+isInsideBoard :: Coordinates -> Bool
+isInsideBoard (i, j) = i >= 0 && i <= 7 && j >= 0 && j <= 7
+
+--------- Private Functions ---------
+
+opponent :: Color -> Color
+opponent White = Black
+opponent Black = White
 
 anyOnLongDiagonal :: [Coordinates] -> Coordinates -> Bool
 anyOnLongDiagonal testCoords start = any (onLongDiagonal start) testCoords
@@ -215,9 +252,6 @@ getKingSquare bord player =
     rlookup x = lookup x . map swap
     swap (x, y) = (y, x)
 
-queenPattern :: [(Int, Int)]
-queenPattern = rookPattern ++ bishopPattern
-
 rookPattern :: [(Int, Int)]
 rookPattern = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
@@ -246,39 +280,3 @@ iterateDirectionInsideBoardInclusive
     :: Coordinates -> (Int, Int) -> [Coordinates]
 iterateDirectionInsideBoardInclusive start direction =
     takeWhile isInsideBoard $ iterate (sumSquares direction) start
-
-isInsideBoard :: Coordinates -> Bool
-isInsideBoard (i, j) = i >= 0 && i <= 7 && j >= 0 && j <= 7
-
-
-toStringCoord :: BoardPosition -> String
-toStringCoord (file, rank) = file : show rank
-
-toStringMove :: BoardPosition -> BoardPosition -> String
-toStringMove fromPos toPos =
-    toStringCoord fromPos ++ "-" ++ toStringCoord toPos
-
-toStringMovePromote :: BoardPosition -> BoardPosition -> PieceType -> String
-toStringMovePromote fromPos toPos pieceType =
-    let showPieceType Knight   = "N"
-        showPieceType pieceTyp = [head $ show pieceTyp]
-    in  toStringMove fromPos toPos ++ "=" ++ showPieceType pieceType
-
-coordsToBoardPosition :: Coordinates -> BoardPosition
-coordsToBoardPosition (rank, file) = (chr $ file + ord 'a', 8 - rank)
-
-toCoordinates :: BoardPosition -> Coordinates
-toCoordinates (file, rank) = (8 - rank, ord file - ord 'a')
-
-parseCoordinate :: String -> Maybe Coordinates
-parseCoordinate [column, row] | isInsideBoard coordinates = Just coordinates
-                              | otherwise                 = Nothing
-    where coordinates = (ord '8' - ord row, ord column - ord 'a')
-parseCoordinate _ = Nothing
-
-printCoordinate :: Coordinates -> String
-printCoordinate (r, c) = [chr (ord 'a' + c), intToDigit (8 - r)]
-
-squareToMaybe :: Square -> Maybe Piece
-squareToMaybe Empty          = Nothing
-squareToMaybe (Square piece) = Just piece
