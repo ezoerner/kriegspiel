@@ -8,4 +8,4 @@ packages:
   extra-dep: true
 extra-deps:
 - hchesslib-0.1.0.0
-resolver: lts-11.6
+resolver: lts-11.9
