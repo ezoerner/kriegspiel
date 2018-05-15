@@ -1,6 +1,5 @@
 module ChessUtils
     ( MoveAttempt(..)
-    , Scores(..)
     , Check(..)
     , GameOver(..)
     , isGameOver
@@ -23,9 +22,6 @@ import           Data.Maybe.HT                  ( toMaybe )
 import           Data.List                      ( nub )
 
 data MoveAttempt = Successful | Illegal Piece Coordinates (Maybe Coordinates)
-    deriving (Show)
-
-data Scores = Scores { white :: Integer, black :: Integer }
     deriving (Show)
 
 data Check = Vertical | Horizontal | LongDiagonal | ShortDiagonal | KnightCheck

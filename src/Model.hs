@@ -94,7 +94,7 @@ promote model@Model { gameState, playerState = PromotionPrompt fromPos toPos } p
     = let coordMove    = printMove fromPos toPos $ Just pieceType
           newGameState = fromJust $ move gameState coordMove -- state machine guarantees a Just
       in  endTurn $ model { gameState = newGameState }
-promote model _ = model -- ^ cannot promote in other player states
+promote model _ = model -- cannot promote in other player states
 
 canPromote :: GameState -> String -> Bool
 canPromote gameState coordMove = isLegalMove gameState (coordMove ++ "=Q")
