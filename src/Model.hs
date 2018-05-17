@@ -6,7 +6,7 @@ import           Chess
 import           Data.Maybe                     ( fromJust )
 import           Linear.V2                      ( V2 )
 
-import           BoardView
+import           View
 import           ChessUtils
 import           Options
 
@@ -16,7 +16,7 @@ data Model = Model
     , options :: !Options
     , windowDims :: !(V2 Int)
     , mousePos :: !(V2 Int)
-    , boardView :: !BoardView
+    , view :: !View
     , lastMoveAttempt :: !MoveAttempt
     }
     deriving (Show)
@@ -28,37 +28,37 @@ initialModel options windowDims = Model
     , options
     , windowDims
     , mousePos        = pure 0
-    , boardView       = initialBoardView windowDims
+    , view       = initialView windowDims
     , lastMoveAttempt = Successful
     }
 
 resize :: Model -> V2 Int -> Model
-resize model@Model { boardView } windowDims =
+resize model@Model { view } windowDims =
     let bbox = calcBoardBBox windowDims
-    in  model { windowDims, boardView = boardView { bbox } }
+    in  model { windowDims, view = view { bbox } }
 
 rotateBoard :: Model -> Model
-rotateBoard model@Model { boardView = boardView@BoardView { orient = Black } }
-    = model { boardView = boardView { orient = White } }
-rotateBoard model@Model { boardView = boardView@BoardView { orient = White } }
-    = model { boardView = boardView { orient = Black } }
+rotateBoard model@Model { view = view@View { orient = Black } }
+    = model { view = view { orient = White } }
+rotateBoard model@Model { view = view@View { orient = White } }
+    = model { view = view { orient = Black } }
 
 startDragPiece :: Model -> V2 Int -> Model
-startDragPiece model@Model { boardView = boardView@BoardView { bbox }, gameState } globalPoint
+startDragPiece model@Model { view = view@View { bbox }, gameState } globalPoint
     = let localPoint  = toBoardLocal (fromIntegral <$> globalPoint) bbox
           maybeCoords = findPositionWithPiece (board gameState)
-                                              boardView
+                                              view
                                               localPoint
                                               (currentPlayer gameState)
-          newBoardView coords = boardView { coordsInMotion = Just coords }
+          newView coords = view { coordsInMotion = Just coords }
       in  if isGameOver gameState
               then model
               else case maybeCoords of
                   Nothing     -> model
-                  Just coords -> model { boardView = newBoardView coords }
+                  Just coords -> model { view = newView coords }
 
 dropPiece :: Model -> V2 Int -> Model
-dropPiece model@Model { boardView = boardView@BoardView { bbox, orient, coordsInMotion = Just dragCoords }, gameState } globalPoint
+dropPiece model@Model { view = view@View { bbox, orient, coordsInMotion = Just dragCoords }, gameState } globalPoint
     = let
           localPoint    = toBoardLocal (fromIntegral <$> globalPoint) bbox
           maybeToCoords = pointToCoords bbox localPoint orient
@@ -69,7 +69,7 @@ dropPiece model@Model { boardView = boardView@BoardView { bbox, orient, coordsIn
           pc = fromJust $ pieceAt (board gameState) $ printCoordinate
               dragCoords
           stopDragModel =
-              model { boardView = boardView { coordsInMotion = Nothing } }
+              model { view = view { coordsInMotion = Nothing } }
           promotionModel = stopDragModel
               { playerState = PromotionPrompt dragCoords
                                               (fromJust maybeToCoords)
@@ -100,13 +100,13 @@ canPromote :: GameState -> String -> Bool
 canPromote gameState coordMove = isLegalMove gameState (coordMove ++ "=Q")
 
 endTurn :: Model -> Model
-endTurn model@Model { options = Options { gameVariant, hotSeat }, boardView = boardView@BoardView { orient } }
+endTurn model@Model { options = Options { gameVariant, hotSeat }, view = view@View { orient } }
     = let gameState'                    = gameState model
           (nextPlayerState, nextOrient) = case (gameVariant, hotSeat) of
               (Kriegspiel, True) -> (HotSeatWait, currentPlayer gameState')
               (Chess     , True) -> (Playing, currentPlayer gameState')
               _                  -> (Playing, orient)
       in  model { playerState     = nextPlayerState
-                , boardView       = boardView { orient = nextOrient }
+                , view       = view { orient = nextOrient }
                 , lastMoveAttempt = Successful
                 }

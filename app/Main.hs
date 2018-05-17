@@ -20,7 +20,7 @@ import qualified Helm.Mouse                    as Mouse
 import qualified Helm.Sub                      as Sub
 import qualified Helm.Window                   as Window
 
-import           BoardView
+import           View
 import           Model
 import           Options
 import           ChessUtils
@@ -86,12 +86,12 @@ subscriptions = Sub.batch
     , Mouse.moves $ \loc -> MoveMouse loc
     ]
 
-view
+mainView
     :: M.Map String (Image SDLEngine)
     -> SDLEngine
     -> Model
     -> Graphics SDLEngine
-view assets _ Model { options = options@Options { gameVariant }, ..}
+mainView assets _ Model { options = options@Options { gameVariant }, ..}
     = let lightSquare  = assets M.! "square_brown_light"
           darkSquare   = assets M.! "square_brown_dark"
           overlayColor = rgb 0 0 0
@@ -100,18 +100,18 @@ view assets _ Model { options = options@Options { gameVariant }, ..}
       in  Graphics2D $ collage
               [ background (fromIntegral <$> windowDims)
               , textOverlay overlayColor
-                            boardView
+                            view
                             gameState
                             lastMoveAttempt
                             playerState
               , move border $ boardForm lightSquare
                                         darkSquare
-                                        boardView
+                                        view
                                         (pwnTries gameVariant playerState)
               , move border $ piecesForm playerState
                                          gameState
                                          options
-                                         boardView
+                                         view
                                          assets
                                          mousePos
               ]
@@ -161,5 +161,5 @@ runGame options = do
             { initialFn       = initial options
             , updateFn        = update
             , subscriptionsFn = subscriptions
-            , viewFn          = view allAssets engine
+            , viewFn          = mainView allAssets engine
             }

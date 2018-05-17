@@ -1,6 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module BoardView where
+module View where
 
 import           Chess
 import           Control.Applicative            ( pure )
@@ -36,7 +36,7 @@ data BoundingSquare = BSquare
     , topLeft :: !(V2 Double)
     } deriving (Show)
 
-data BoardView = BoardView
+data View = View
     { bbox :: !BoundingSquare
     , orient :: !Color
     , coordsInMotion :: !(Maybe Coordinates)
@@ -50,8 +50,8 @@ data PlayerState =
     PromotionPrompt Coordinates Coordinates
   deriving (Show, Eq)
 
-initialBoardView :: V2 Int -> BoardView
-initialBoardView windowDims = BoardView
+initialView :: V2 Int -> View
+initialView windowDims = View
     { bbox           = calcBoardBBox windowDims
     , orient         = White
     , coordsInMotion = Nothing
@@ -70,8 +70,8 @@ calcBoardBBox windowSize =
             }
 
 findPositionWithPiece
-    :: Board -> BoardView -> V2 Double -> Color -> Maybe Coordinates
-findPositionWithPiece bord BoardView { bbox, orient } point playerTurn =
+    :: Board -> View -> V2 Double -> Color -> Maybe Coordinates
+findPositionWithPiece bord View { bbox, orient } point playerTurn =
     let maybeCoords = pointToCoords bbox point orient
     in  maybeCoords >>= \testCoords ->
             bord `pieceAt` printCoordinate testCoords >>= \(Piece clr _) ->
@@ -157,12 +157,12 @@ toMoveText helmColor gameState =
 
 textOverlay
     :: HelmColor.Color
-    -> BoardView
+    -> View
     -> GameState
     -> MoveAttempt
     -> PlayerState
     -> HGfx.Form SDLEngine
-textOverlay helmColor BoardView { bbox = BSquare { width, topLeft = (V2 left top) } } gameState moveAttempt playerState
+textOverlay helmColor View { bbox = BSquare { width, topLeft = (V2 left top) } } gameState moveAttempt playerState
     = let
           topX     = width / 2 + left
           topY     = top / 2
@@ -202,10 +202,10 @@ boardForm
     :: Engine e
     => Image e
     -> Image e
-    -> BoardView
+    -> View
     -> [Coordinates]
     -> HGfx.Form e
-boardForm lightSquare darkSquare BoardView { bbox = bbox@BSquare { width }, orient } pawnTries
+boardForm lightSquare darkSquare View { bbox = bbox@BSquare { width }, orient } pawnTries
     = let ssize     = squareSize bbox
           imageDims = V2 ssize ssize
           pawnTryForm =
@@ -276,11 +276,11 @@ piecesForm
     => PlayerState
     -> GameState
     -> Options
-    -> BoardView
+    -> View
     -> M.Map String (Image e)
     -> V2 Int
     -> HGfx.Form e
-piecesForm playerState gameState Options { gameVariant } BoardView { bbox, orient, coordsInMotion } assets mousePos
+piecesForm playerState gameState Options { gameVariant } View { bbox, orient, coordsInMotion } assets mousePos
     = let
           showColor clr = toLower (head $ show clr)
           showPieceType pieceType = toLower <$> show pieceType
