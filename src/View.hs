@@ -37,11 +37,15 @@ data BoundingSquare = BSquare
     } deriving (Show)
 
 data View = View
-    { bbox :: !BoundingSquare
+    { windowDims :: !(V2 Int)
+    , bbox :: !BoundingSquare
     , orient :: !Color
     , coordsInMotion :: !(Maybe Coordinates)
     }
     deriving (Show)
+
+initialWindowDims :: V2 Int
+initialWindowDims = V2 1000 640
 
 data PlayerState =
     Playing |
@@ -50,15 +54,17 @@ data PlayerState =
     PromotionPrompt Coordinates Coordinates
   deriving (Show, Eq)
 
-initialView :: V2 Int -> View
-initialView windowDims = View
-    { bbox           = calcBoardBBox windowDims
+initialView :: View
+initialView = View
+    { windowDims     = initialWindowDims
+    , bbox           = calcBoardBBox initialWindowDims
     , orient         = White
     , coordsInMotion = Nothing
     }
 
 border :: Num a => V2 a
 border = V2 100 100
+
 
 calcBoardBBox :: (Integral a, Ord a) => V2 a -> BoundingSquare
 calcBoardBBox windowSize =
@@ -69,8 +75,25 @@ calcBoardBBox windowSize =
             , topLeft = border
             }
 
-findPositionWithPiece
-    :: Board -> View -> V2 Double -> Color -> Maybe Coordinates
+resize :: View -> V2 Int -> View
+resize view windowDims =
+    let bbox = calcBoardBBox windowDims
+    in  view {windowDims, bbox}
+
+rotateBoard :: View -> View
+rotateBoard view@View{orient=Black} = view{orient=White}
+rotateBoard view@View{orient=White} = view{orient=Black}
+
+endTurnV :: View
+         -> Color -- ^ current player
+         -> Bool  -- ^ isHotSeat
+         -> View
+endTurnV view@View{orient} currPlayer isHotSeat =
+    view{orient=if isHotSeat
+                then currPlayer
+                else orient}
+
+findPositionWithPiece :: Board -> View -> V2 Double -> Color -> Maybe Coordinates
 findPositionWithPiece bord View { bbox, orient } point playerTurn =
     let maybeCoords = pointToCoords bbox point orient
     in  maybeCoords >>= \testCoords ->
@@ -88,8 +111,7 @@ pointToCoords bbox (V2 x y) playerOrient =
 toBoardLocal :: V2 Double -> BoundingSquare -> V2 Double
 toBoardLocal globalV2 bbox = globalV2 - topLeft bbox
 
-sideBarTexts
-    :: HelmColor.Color -- ^ the text color
+sideBarTexts:: HelmColor.Color -- ^ the text color
     -> MoveAttempt
     -> GameState
     -> PlayerState

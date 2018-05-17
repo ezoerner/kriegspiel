@@ -20,10 +20,17 @@ import qualified Helm.Mouse                    as Mouse
 import qualified Helm.Sub                      as Sub
 import qualified Helm.Window                   as Window
 
-import           View
 import           Model
+import           View
+import           Controller
 import           Options
 import           ChessUtils
+
+data App = App
+    { model :: !Model
+    , view :: !View
+    , options :: !Options
+    }
 
 data Action = DoNothing
             | ResizeWindow (V2 Int)
@@ -42,29 +49,31 @@ backgroundColor = rgb (fromRational 252 / 255)
 background :: V2 Double -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 
-initialWindowDims :: V2 Int
-initialWindowDims = V2 1000 640
+initial :: Options -> (App, Cmd SDLEngine Action)
+initial options = (App (initialModel options initialWindowDims) initialView options, Cmd.none)
 
-initial :: Options -> (Model, Cmd SDLEngine Action)
-initial options = (initialModel options initialWindowDims, Cmd.none)
-
-update :: Model -> Action -> (Model, Cmd SDLEngine Action)
-update model (ResizeWindow windowSize) = (resize model windowSize, Cmd.none)
-update model@Model { playerState = Playing } RotateBoard =
-    (rotateBoard model, Cmd.none)
-update model@Model { playerState = Playing } HotSeatNext = (model, Cmd.none)
-update model@Model { playerState = HotSeatWait } HotSeatNext =
-    (model { playerState = HotSeatBlank }, Cmd.none)
-update model@Model { playerState = HotSeatBlank } HotSeatNext =
-    (model { playerState = Playing }, Cmd.none)
-update model@Model { playerState = Playing } (StartDrag globalPoint) =
-    (startDragPiece model globalPoint, Cmd.none)
-update model@Model { playerState = Playing } (Drop globalPoint) =
-    (dropPiece model globalPoint, Cmd.none)
-update model (MoveMouse mousePos) = (model { mousePos }, Cmd.none)
-update model@Model { playerState = PromotionPrompt _ _ } (Promote pieceType) =
-    (promote model pieceType, Cmd.none)
-update model _ = (model, Cmd.none)
+update :: App -> Action -> (App, Cmd SDLEngine Action)
+update app@App{view} (ResizeWindow windowSize) =
+    (app{view=resize view windowSize}, Cmd.none)
+update app@App{model=model@Model{playerState=Playing}} RotateBoard =
+    (app{view=rotateBoard view}, Cmd.none)
+update app@App{model=model@Model{playerState=Playing}} HotSeatNext =
+    (app{model}, Cmd.none)
+update app@App{model=model@Model{playerState=HotSeatWait}} HotSeatNext =
+    (app{model{playerState=HotSeatBlank}}, Cmd.none)
+update app@App{model=model@Model{playerState=HotSeatBlank}} HotSeatNext =
+    (app{model{playerState=Playing}}, Cmd.none)
+update app@App{model=model@Model{playerState=Playing}} (StartDrag globalPoint) =
+    (app{model=startDragPiece model globalPoint}, Cmd.none)
+update app@App{model=model@Model{playerState=Playing}} (Drop globalPoint) =
+    (app{model=dropPiece model globalPoint}, Cmd.none)
+update app@App{model} (MoveMouse mousePos) = (app{model { mousePos }}, Cmd.none)
+update app@App{options=Options{hotSeat}, model=model@Model{playerState=PromotionPrompt fromPos toPos},view} (Promote pieceType) =
+  let
+    (m, v) = promote model view hotSeat pieceType fromPos toPos
+  in
+    (app{model=m, view=v}, Cmd.none)
+update app _ = (app, Cmd.none)
 
 subscriptions :: Sub SDLEngine Action
 subscriptions = Sub.batch
