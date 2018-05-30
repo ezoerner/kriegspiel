@@ -19,8 +19,8 @@ data Model = Model
     }
     deriving (Show)
 
-initialModel :: Options -> V2 Int -> Model
-initialModel options windowDims = Model
+initialModel :: Options -> Model
+initialModel options = Model
     { gameState       = newGame
     , playerState     = Playing
     , options

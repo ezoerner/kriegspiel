@@ -45,30 +45,33 @@ backgroundColor :: HelmColor.Color
 backgroundColor = rgb (fromRational 252 / 255)
                       (fromRational 244 / 255)
                       (fromRational 220 / 255)
-
 background :: V2 Double -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 
 initial :: Options -> (App, Cmd SDLEngine Action)
-initial options = (App (initialModel options initialWindowDims) initialView options, Cmd.none)
+initial options = (App (initialModel options) initialView options, Cmd.none)
 
 update :: App -> Action -> (App, Cmd SDLEngine Action)
 update app@App{view} (ResizeWindow windowSize) =
     (app{view=resize view windowSize}, Cmd.none)
-update app@App{model=model@Model{playerState=Playing}} RotateBoard =
+update app@App{view, model=Model{playerState=Playing}} RotateBoard =
     (app{view=rotateBoard view}, Cmd.none)
 update app@App{model=model@Model{playerState=Playing}} HotSeatNext =
     (app{model}, Cmd.none)
 update app@App{model=model@Model{playerState=HotSeatWait}} HotSeatNext =
-    (app{model{playerState=HotSeatBlank}}, Cmd.none)
+    (app{model=model{playerState=HotSeatBlank}}, Cmd.none)
 update app@App{model=model@Model{playerState=HotSeatBlank}} HotSeatNext =
-    (app{model{playerState=Playing}}, Cmd.none)
-update app@App{model=model@Model{playerState=Playing}} (StartDrag globalPoint) =
-    (app{model=startDragPiece model globalPoint}, Cmd.none)
-update app@App{model=model@Model{playerState=Playing}} (Drop globalPoint) =
-    (app{model=dropPiece model globalPoint}, Cmd.none)
-update app@App{model} (MoveMouse mousePos) = (app{model { mousePos }}, Cmd.none)
-update app@App{options=Options{hotSeat}, model=model@Model{playerState=PromotionPrompt fromPos toPos},view} (Promote pieceType) =
+    (app{model=model{playerState=Playing}}, Cmd.none)
+update app@App{model=Model{gameState, playerState=Playing}, view} (StartDrag globalPoint) =
+    (app{view=startDragPiece gameState view globalPoint}, Cmd.none)
+update app@App{model=model@Model{playerState=Playing}, view=view@View{coordsInMotion=Just dragCoords}, options=Options{hotSeat}} (Drop globalPoint) =
+  let
+    (m,v) = dropPiece model view globalPoint hotSeat
+  in
+    (app{model=m, view=v{coordsInMotion=Nothing}}, Cmd.none)
+update app@App{model} (MoveMouse mousePos) = (app{model=model{mousePos}}, Cmd.none)
+update app@App{options=Options{hotSeat},
+    model=model@Model{playerState=PromotionPrompt fromPos toPos},view} (Promote pieceType) =
   let
     (m, v) = promote model view hotSeat pieceType fromPos toPos
   in
@@ -98,9 +101,9 @@ subscriptions = Sub.batch
 mainView
     :: M.Map String (Image SDLEngine)
     -> SDLEngine
-    -> Model
+    -> App
     -> Graphics SDLEngine
-mainView assets _ Model { options = options@Options { gameVariant }, ..}
+mainView assets _ App{options = optns@Options { gameVariant }, model=Model{..}, view=view@View{windowDims}}
     = let lightSquare  = assets M.! "square_brown_light"
           darkSquare   = assets M.! "square_brown_dark"
           overlayColor = rgb 0 0 0
@@ -119,7 +122,7 @@ mainView assets _ Model { options = options@Options { gameVariant }, ..}
                                         (pwnTries gameVariant playerState)
               , move border $ piecesForm playerState
                                          gameState
-                                         options
+                                         optns
                                          view
                                          assets
                                          mousePos
