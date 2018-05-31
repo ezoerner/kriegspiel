@@ -8,6 +8,7 @@ import Chess
 
 import View
 import Model
+import Options
 import ChessUtils
 
 startDragPiece :: GameState -> View -> V2 Int -> View
@@ -26,8 +27,8 @@ startDragPiece gameState view@View{bbox} globalPoint =
         Nothing     -> view
         Just coords -> newView coords
         
-dropPiece :: Model -> View -> V2 Int -> Bool -> (Model, View)
-dropPiece model@Model{gameState} view@View{bbox,orient,coordsInMotion=Just dragCoords} globalPoint hotSeat =
+dropPiece :: Options -> Model -> View -> V2 Int -> (Model, View)
+dropPiece options model@Model{gameState} view@View{bbox,orient,coordsInMotion=Just dragCoords} globalPoint =
     let
       localPoint    = toBoardLocal (fromIntegral <$> globalPoint) bbox
       maybeToCoords = pointToCoords bbox localPoint orient
@@ -48,28 +49,28 @@ dropPiece model@Model{gameState} view@View{bbox,orient,coordsInMotion=Just dragC
     in
       case maybeNextState of
         Just nextGameState ->
-          endTurn model{gameState = nextGameState} view hotSeat
+          endTurn options model{gameState = nextGameState} view
         Nothing ->
           (maybe model checkForPromotion maybeTargetCoordMove, view)
-dropPiece model view  _ _ = (model, view) -- nothing in motion
+dropPiece _ model view  _ = (model, view) -- nothing in motion
 
 promote :: Model
         -> View
-        -> Bool         -- ^ hotSeat
+        -> Options
         -> PieceType
         -> Coordinates  -- ^ fromPos
         -> Coordinates  -- ^ toPos
         -> (Model, View)
-promote model view hotSeat pieceType fromPos toPos =
+promote model view options pieceType fromPos toPos =
   let
     model' = promoteM model fromPos toPos pieceType
   in
-    endTurn model' view hotSeat
+    endTurn options model' view
 
-endTurn :: Model -> View -> Bool -> (Model, View)
-endTurn model@Model{gameState} view hotSeat =
+endTurn :: Options -> Model -> View -> (Model, View)
+endTurn options@Options{hotSeat} model@Model{gameState} view =
   let
-    model' = endTurnM model
+    model' = endTurnM options model
     view' = endTurnV view (currentPlayer gameState) hotSeat
   in
     (model', view')

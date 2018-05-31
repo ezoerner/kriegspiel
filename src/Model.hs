@@ -4,8 +4,8 @@
 module Model where
 
 import           Chess
-import           Data.Maybe                     ( fromJust )
-import           Linear.V2                      ( V2 )
+import           Data.Maybe        ( fromJust )
+import           Linear.V2         ( V2 )
 
 import           View
 import           ChessUtils
@@ -14,17 +14,15 @@ import           Options
 data Model = Model
     { gameState :: !GameState
     , playerState :: !PlayerState
-    , options :: !Options
     , mousePos :: !(V2 Int)
     , lastMoveAttempt :: !MoveAttempt
     }
     deriving (Show)
 
-initialModel :: Options -> Model
-initialModel options = Model
+initialModel :: Model
+initialModel = Model
     { gameState       = newGame
     , playerState     = Playing
-    , options
     , mousePos        = pure 0
     , lastMoveAttempt = Successful
     }
@@ -40,8 +38,8 @@ promoteM model@Model{gameState} fromPos toPos pieceType =
 canPromote :: GameState -> String -> Bool
 canPromote gameState coordMove = isLegalMove gameState (coordMove ++ "=Q")
 
-endTurnM :: Model -> Model
-endTurnM model@Model{options = Options{gameVariant, hotSeat}} =
+endTurnM :: Options -> Model -> Model
+endTurnM Options{gameVariant, hotSeat} model =
   model{ playerState = if hotSeat && gameVariant == Kriegspiel then HotSeatWait else Playing
        , lastMoveAttempt = Successful
        }

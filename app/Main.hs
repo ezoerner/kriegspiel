@@ -2,23 +2,23 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
-import qualified Data.Map.Strict               as M
-import           Linear.V2                     (V2)
+import qualified Data.Map.Strict         as M
+import           Linear.V2               (V2)
 import           Options.Applicative
-import           System.FilePath                ( (</>) )
+import           System.FilePath         ( (</>) )
 import           System.Directory
 
 import           Chess                   hiding ( move )
 import           Helm
-import           Helm.Color                    as HelmColor
-import qualified Helm.Cmd                      as Cmd
-import qualified Helm.Engine.SDL               as SDL
-import           Helm.Engine.SDL                ( SDLEngine )
+import           Helm.Color              as HelmColor
+import qualified Helm.Cmd                as Cmd
+import qualified Helm.Engine.SDL         as SDL
+import           Helm.Engine.SDL         ( SDLEngine )
 import           Helm.Graphics2D
-import qualified Helm.Keyboard                 as Keyboard
-import qualified Helm.Mouse                    as Mouse
-import qualified Helm.Sub                      as Sub
-import qualified Helm.Window                   as Window
+import qualified Helm.Keyboard           as Keyboard
+import qualified Helm.Mouse              as Mouse
+import qualified Helm.Sub                as Sub
+import qualified Helm.Window             as Window
 
 import           Model
 import           View
@@ -49,7 +49,7 @@ background :: V2 Double -> Form e
 background v2 = move (v2 / 2) $ filled backgroundColor $ rect v2
 
 initial :: Options -> (App, Cmd SDLEngine Action)
-initial options = (App (initialModel options) initialView options, Cmd.none)
+initial options = (App initialModel initialView options, Cmd.none)
 
 update :: App -> Action -> (App, Cmd SDLEngine Action)
 update app@App{view} (ResizeWindow windowSize) =
@@ -66,16 +66,17 @@ update app@App{model=Model{gameState, playerState=Playing}, view} (StartDrag glo
     (app{view=startDragPiece gameState view globalPoint}, Cmd.none)
 update app@App{model=model@Model{playerState=Playing},
                view,
-               options=Options{hotSeat}} (Drop globalPoint) =
+               options} (Drop globalPoint) =
   let
-    (m,v) = dropPiece model view globalPoint hotSeat
+    (m,v) = dropPiece options model view globalPoint
   in
     (app{model=m, view=v{coordsInMotion=Nothing}}, Cmd.none)
 update app@App{model} (MoveMouse mousePos) = (app{model=model{mousePos}}, Cmd.none)
-update app@App{options=Options{hotSeat},
-    model=model@Model{playerState=PromotionPrompt fromPos toPos},view} (Promote pieceType) =
+update app@App{options,
+               model=model@Model{playerState=PromotionPrompt fromPos toPos},
+               view} (Promote pieceType) =
   let
-    (m, v) = promote model view hotSeat pieceType fromPos toPos
+    (m, v) = promote model view options pieceType fromPos toPos
   in
     (app{model=m, view=v}, Cmd.none)
 update app _ = (app, Cmd.none)
