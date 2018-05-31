@@ -231,9 +231,9 @@ boardForm lightSquare darkSquare View { bbox = bbox@BSquare { width }, orient } 
     = let ssize     = squareSize bbox
           imageDims = V2 ssize ssize
           pawnTryForm =
-            -- TODO attempt to vertically center text form inside group
+            -- TODO attempt to center text form inside group
             -- doesn't work, bug in Helm?
-              HGfx.move (V2 0 ssize / 2)
+              HGfx.move (V2 (ssize/2) (ssize/2))
                   $ HGfx.text
                   $ height 12
                   $ color (HelmColor.rgb 1 1 1)
