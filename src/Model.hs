@@ -1,3 +1,4 @@
+
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Model where
@@ -40,7 +41,7 @@ canPromote :: GameState -> String -> Bool
 canPromote gameState coordMove = isLegalMove gameState (coordMove ++ "=Q")
 
 endTurnM :: Model -> Model
-endTurnM model@Model{gameState, options = Options{gameVariant, hotSeat}} =
+endTurnM model@Model{options = Options{gameVariant, hotSeat}} =
   model{ playerState = if hotSeat && gameVariant == Kriegspiel then HotSeatWait else Playing
        , lastMoveAttempt = Successful
        }

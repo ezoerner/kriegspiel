@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 import qualified Data.Map.Strict               as M
-import           Linear.V2                      ( V2(V2) )
+import           Linear.V2                     (V2)
 import           Options.Applicative
 import           System.FilePath                ( (</>) )
 import           System.Directory
@@ -64,7 +64,9 @@ update app@App{model=model@Model{playerState=HotSeatBlank}} HotSeatNext =
     (app{model=model{playerState=Playing}}, Cmd.none)
 update app@App{model=Model{gameState, playerState=Playing}, view} (StartDrag globalPoint) =
     (app{view=startDragPiece gameState view globalPoint}, Cmd.none)
-update app@App{model=model@Model{playerState=Playing}, view=view@View{coordsInMotion=Just dragCoords}, options=Options{hotSeat}} (Drop globalPoint) =
+update app@App{model=model@Model{playerState=Playing},
+               view,
+               options=Options{hotSeat}} (Drop globalPoint) =
   let
     (m,v) = dropPiece model view globalPoint hotSeat
   in

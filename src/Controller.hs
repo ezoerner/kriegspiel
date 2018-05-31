@@ -51,6 +51,7 @@ dropPiece model@Model{gameState} view@View{bbox,orient,coordsInMotion=Just dragC
           endTurn model{gameState = nextGameState} view hotSeat
         Nothing ->
           (maybe model checkForPromotion maybeTargetCoordMove, view)
+dropPiece model view  _ _ = (model, view) -- nothing in motion
 
 promote :: Model
         -> View
@@ -59,7 +60,7 @@ promote :: Model
         -> Coordinates  -- ^ fromPos
         -> Coordinates  -- ^ toPos
         -> (Model, View)
-promote model@Model{gameState} view hotSeat pieceType fromPos toPos =
+promote model view hotSeat pieceType fromPos toPos =
   let
     model' = promoteM model fromPos toPos pieceType
   in
