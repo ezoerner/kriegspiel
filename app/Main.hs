@@ -1,33 +1,33 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
-import qualified Data.Map.Strict         as M
-import           Linear.V2               (V2)
+import qualified Data.Map.Strict     as M
+import           Linear.V2           (V2)
 import           Options.Applicative
-import           System.FilePath         ( (</>) )
 import           System.Directory
+import           System.FilePath     ((</>))
 
-import           Chess                   hiding ( move )
+import           Chess               hiding (move)
 import           Helm
-import           Helm.Color              as HelmColor
-import qualified Helm.Cmd                as Cmd
-import qualified Helm.Engine.SDL         as SDL
-import           Helm.Engine.SDL         ( SDLEngine )
+import qualified Helm.Cmd            as Cmd
+import           Helm.Color          as HelmColor
+import           Helm.Engine.SDL     (SDLEngine)
+import qualified Helm.Engine.SDL     as SDL
 import           Helm.Graphics2D
-import qualified Helm.Keyboard           as Keyboard
-import qualified Helm.Mouse              as Mouse
-import qualified Helm.Sub                as Sub
-import qualified Helm.Window             as Window
+import qualified Helm.Keyboard       as Keyboard
+import qualified Helm.Mouse          as Mouse
+import qualified Helm.Sub            as Sub
+import qualified Helm.Window         as Window
 
-import           Model
-import           View
 import           Controller
+import           Model
 import           Options
+import           View
 
 data App = App
-    { model :: !Model
-    , view :: !View
+    { model   :: !Model
+    , view    :: !View
     , options :: !Options
     }
 

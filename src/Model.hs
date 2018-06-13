@@ -22,14 +22,14 @@ module Model ( Model (..)
 import           Chess
 import           Data.Array
 import           Data.Char
-import           Data.List         ( nub )
+import           Data.List     (nub)
 import           Data.Maybe
-import           Data.Maybe.HT     ( toMaybe )
-import           Linear.V2         ( V2 )
+import           Data.Maybe.HT (toMaybe)
+import           Linear.V2     (V2)
 
 data Model = Model
-    { gameState :: !GameState
-    , mousePos :: !(V2 Int)
+    { gameState       :: !GameState
+    , mousePos        :: !(V2 Int)
     , lastMoveAttempt :: !MoveAttempt
     }
     deriving (Show)
@@ -41,7 +41,7 @@ data GameOver = Checkmate { winnerColor :: !Color } | Draw DrawReason
 
 instance Show GameOver where
   show (Checkmate winColor) = "Checkmate! " ++ show winColor ++ " wins!"
-  show (Draw drawReason) = "Draw due to " ++ show drawReason
+  show (Draw drawReason)    = "Draw due to " ++ show drawReason
 
 data DrawReason = Stalemate | InsufficientForce
 
@@ -49,7 +49,7 @@ data MoveAttempt = Successful | Illegal Piece Coordinates (Maybe Coordinates)
   deriving (Show)
 
 instance Show DrawReason where
-  show Stalemate = "Stalemate"
+  show Stalemate         = "Stalemate"
   show InsufficientForce = "Insufficient Force"
 
 initialModel :: Model

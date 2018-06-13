@@ -3,45 +3,37 @@
 module View where
 
 import           Chess
-import           Control.Applicative            ( pure )
-import           Control.Monad                  ( guard )
-import           Data.Array                    as A
-import           Data.Char                      ( ord
-                                                , chr
-                                                , toLower
-                                                )
-import           Data.List                      ( map
-                                                , sortOn
-                                                , foldl'
-                                                )
-import qualified Data.Map.Strict               as M
-import           Data.Maybe                     ( isJust
-                                                , fromJust
-                                                )
-import           Data.Maybe.HT                  ( toMaybe )
+import           Control.Applicative  (pure)
+import           Control.Monad        (guard)
+import           Data.Array           as A
+import           Data.Char            (chr, ord, toLower)
+import           Data.List            (foldl', map, sortOn)
+import qualified Data.Map.Strict      as M
+import           Data.Maybe           (fromJust, isJust)
+import           Data.Maybe.HT        (toMaybe)
 import           Helm
-import qualified Helm.Color                    as HelmColor
-import           Helm.Engine                    ( Engine )
-import           Helm.Engine.SDL                ( SDLEngine )
-import qualified Helm.Graphics2D               as HGfx
+import qualified Helm.Color           as HelmColor
+import           Helm.Engine          (Engine)
+import           Helm.Engine.SDL      (SDLEngine)
+import qualified Helm.Graphics2D      as HGfx
 import           Helm.Graphics2D.Text
-import           Linear.V2                      ( V2(V2) )
+import           Linear.V2            (V2 (V2))
 
 import           Model
 import           Options
 
 -- for this game a bounding box is always square
 data BoundingSquare = BSquare
-    { width :: !Double
+    { width   :: !Double
     , topLeft :: !(V2 Double)
     } deriving (Show)
 
 data View = View
-    { windowDims :: !(V2 Int)
-    , bbox :: !BoundingSquare
-    , orient :: !Color
+    { windowDims     :: !(V2 Int)
+    , bbox           :: !BoundingSquare
+    , orient         :: !Color
     , coordsInMotion :: !(Maybe Coordinates)
-    , playerState :: !PlayerState
+    , playerState    :: !PlayerState
     }
     deriving (Show)
 
@@ -88,7 +80,7 @@ rotateBoard view@View{orient=White} = view{orient=Black}
 
 endTurnV :: View
          -> Color     -- ^ current player
-         -> Options 
+         -> Options
          -> View
 endTurnV view@View{orient} currPlayer Options{hotSeat,gameVariant} =
     view{orient=if hotSeat

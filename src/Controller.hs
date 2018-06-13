@@ -1,14 +1,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Controller where
 
-import Data.Maybe
+import           Data.Maybe
 
-import Linear.V2  (V2)
-import Chess
+import           Chess
+import           Linear.V2  (V2)
 
-import View
-import Model
-import Options
+import           Model
+import           Options
+import           View
 
 startDragPiece :: GameState -> View -> V2 Int -> View
 startDragPiece gameState view@View{bbox} globalPoint =

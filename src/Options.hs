@@ -1,13 +1,13 @@
 module Options where
 
+import           Data.Semigroup      ((<>))
 import           Options.Applicative
-import           Data.Semigroup                 ( (<>) )
 
 data GameVariant = Chess | Kriegspiel
   deriving (Eq, Show)
 
 data Options = Options
-    { hotSeat :: Bool
+    { hotSeat     :: Bool
     , gameVariant :: GameVariant
     }
   deriving (Show)
