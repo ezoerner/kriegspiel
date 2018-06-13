@@ -24,7 +24,6 @@ import           Model
 import           View
 import           Controller
 import           Options
-import           ChessUtils
 
 data App = App
     { model :: !Model
@@ -54,18 +53,16 @@ initial options = (App initialModel initialView options, Cmd.none)
 update :: App -> Action -> (App, Cmd SDLEngine Action)
 update app@App{view} (ResizeWindow windowSize) =
     (app{view=resize view windowSize}, Cmd.none)
-update app@App{view, model=Model{playerState=Playing}} RotateBoard =
+update app@App{view=view@View{playerState=Playing}} RotateBoard =
     (app{view=rotateBoard view}, Cmd.none)
-update app@App{model=model@Model{playerState=Playing}} HotSeatNext =
-    (app{model}, Cmd.none)
-update app@App{model=model@Model{playerState=HotSeatWait}} HotSeatNext =
-    (app{model=model{playerState=HotSeatBlank}}, Cmd.none)
-update app@App{model=model@Model{playerState=HotSeatBlank}} HotSeatNext =
-    (app{model=model{playerState=Playing}}, Cmd.none)
-update app@App{model=Model{gameState, playerState=Playing}, view} (StartDrag globalPoint) =
+update app@App{view=view@View{playerState=HotSeatWait}} HotSeatNext =
+    (app{view=view{playerState=HotSeatBlank}}, Cmd.none)
+update app@App{view=view@View{playerState=HotSeatBlank}} HotSeatNext =
+    (app{view=view{playerState=Playing}}, Cmd.none)
+update app@App{model=Model{gameState}, view=view@View{playerState=Playing}} (StartDrag globalPoint) =
     (app{view=startDragPiece gameState view globalPoint}, Cmd.none)
-update app@App{model=model@Model{playerState=Playing},
-               view,
+update app@App{model=model,
+               view=view@View{playerState=Playing},
                options} (Drop globalPoint) =
   let
     (m,v) = dropPiece options model view globalPoint
@@ -73,8 +70,8 @@ update app@App{model=model@Model{playerState=Playing},
     (app{model=m, view=v{coordsInMotion=Nothing}}, Cmd.none)
 update app@App{model} (MoveMouse mousePos) = (app{model=model{mousePos}}, Cmd.none)
 update app@App{options,
-               model=model@Model{playerState=PromotionPrompt fromPos toPos},
-               view} (Promote pieceType) =
+               model=model,
+               view=view@View{playerState=PromotionPrompt fromPos toPos}} (Promote pieceType) =
   let
     (m, v) = promote model view options pieceType fromPos toPos
   in
@@ -106,7 +103,7 @@ mainView
     -> SDLEngine
     -> App
     -> Graphics SDLEngine
-mainView assets _ App{options = optns@Options { gameVariant }, model=Model{..}, view=view@View{windowDims}}
+mainView assets _ App{options = optns@Options { gameVariant }, model=Model{..}, view=view@View{windowDims,playerState}}
     = let lightSquare  = assets M.! "square_brown_light"
           darkSquare   = assets M.! "square_brown_dark"
           overlayColor = rgb 0 0 0

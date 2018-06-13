@@ -27,7 +27,7 @@ import qualified Helm.Graphics2D               as HGfx
 import           Helm.Graphics2D.Text
 import           Linear.V2                      ( V2(V2) )
 
-import           ChessUtils
+import           Model
 import           Options
 
 -- for this game a bounding box is always square
@@ -41,6 +41,7 @@ data View = View
     , bbox :: !BoundingSquare
     , orient :: !Color
     , coordsInMotion :: !(Maybe Coordinates)
+    , playerState :: !PlayerState
     }
     deriving (Show)
 
@@ -60,6 +61,7 @@ initialView = View
     , bbox           = calcBoardBBox initialWindowDims
     , orient         = White
     , coordsInMotion = Nothing
+    , playerState    = Playing
     }
 
 border :: Num a => V2 a
@@ -85,13 +87,17 @@ rotateBoard view@View{orient=Black} = view{orient=White}
 rotateBoard view@View{orient=White} = view{orient=Black}
 
 endTurnV :: View
-         -> Color -- ^ current player
-         -> Bool  -- ^ isHotSeat
+         -> Color     -- ^ current player
+         -> Options 
          -> View
-endTurnV view@View{orient} currPlayer isHotSeat =
-    view{orient=if isHotSeat
+endTurnV view@View{orient} currPlayer Options{hotSeat,gameVariant} =
+    view{orient=if hotSeat
                 then currPlayer
-                else orient}
+                else orient
+         , playerState=if hotSeat && gameVariant == Kriegspiel
+                       then HotSeatWait
+                       else Playing
+         }
 
 findPositionWithPiece :: Board -> View -> V2 Double -> Color -> Maybe Coordinates
 findPositionWithPiece bord View { bbox, orient } point playerTurn =

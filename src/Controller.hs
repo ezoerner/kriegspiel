@@ -9,7 +9,6 @@ import Chess
 import View
 import Model
 import Options
-import ChessUtils
 
 startDragPiece :: GameState -> View -> V2 Int -> View
 startDragPiece gameState view@View{bbox} globalPoint =
@@ -26,7 +25,7 @@ startDragPiece gameState view@View{bbox} globalPoint =
     else case maybeCoords of
         Nothing     -> view
         Just coords -> newView coords
-        
+
 dropPiece :: Options -> Model -> View -> V2 Int -> (Model, View)
 dropPiece options model@Model{gameState} view@View{bbox,orient,coordsInMotion=Just dragCoords} globalPoint =
     let
@@ -37,21 +36,18 @@ dropPiece options model@Model{gameState} view@View{bbox,orient,coordsInMotion=Ju
       maybeNextState = maybeTargetCoordMove >>= move gameState
       wasToSameSquare = dragCoords `elem` maybeToCoords
       pc = fromJust $ pieceAt (board gameState) $ printCoordinate dragCoords
-      promotionModel = model
-        { playerState = PromotionPrompt dragCoords
-                        (fromJust maybeToCoords)
-        }
+      promotionView = view {playerState = PromotionPrompt dragCoords (fromJust maybeToCoords)}
       illegalMoveModel = model{lastMoveAttempt = Illegal pc dragCoords maybeToCoords}
       checkForPromotion targetMove
-        | canPromote gameState targetMove = promotionModel
-        | wasToSameSquare                 = model
-        | otherwise                       = illegalMoveModel
+        | canPromote gameState targetMove = (model, promotionView)
+        | wasToSameSquare                 = (model, view)
+        | otherwise                       = (illegalMoveModel, view)
     in
       case maybeNextState of
         Just nextGameState ->
           endTurn options model{gameState = nextGameState} view
         Nothing ->
-          (maybe model checkForPromotion maybeTargetCoordMove, view)
+          maybe (model,view) checkForPromotion maybeTargetCoordMove
 dropPiece _ model view  _ = (model, view) -- nothing in motion
 
 promote :: Model
@@ -68,9 +64,9 @@ promote model view options pieceType fromPos toPos =
     endTurn options model' view
 
 endTurn :: Options -> Model -> View -> (Model, View)
-endTurn options@Options{hotSeat} model@Model{gameState} view =
+endTurn options model@Model{gameState} view =
   let
-    model' = endTurnM options model
-    view' = endTurnV view (currentPlayer gameState) hotSeat
+    model' = endTurnM model
+    view' = endTurnV view (currentPlayer gameState) options
   in
     (model', view')
