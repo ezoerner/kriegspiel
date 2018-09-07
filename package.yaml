@@ -9,24 +9,10 @@ copyright:
   - (c) 2018 Eric Zoerner
 category: Game
 
-data-files:
-- images/square_gray_light.png
-- images/square_brown_light.png
-- images/square_brown_dark.png
-- images/square_gray_dark.png
-- images/w_pawn_png_withShadow.png
-- images/w_rook_png_withShadow.png
-- images/w_knight_png_withShadow.png
-- images/b_knight_png_withShadow.png
-- images/b_bishop_png_withShadow.png
-- images/b_rook_png_withShadow.png
-- images/b_king_png_withShadow.png
-- images/b_queen_png_withShadow.png
-- images/w_bishop_png_withShadow.png
-- images/w_queen_png_withShadow.png
-- images/b_pawn_png_withShadow.png
-- images/w_king_png_withShadow.png
-- LICENSE
+data-dir: images
+
+extra-source-files:
+  - LICENSE
 
 executables:
   kriegspiel:

@@ -9,5 +9,5 @@ packages:
 extra-deps:
 - hchesslib-0.1.0.0
 - cabal-helper-0.7.3.0
-resolver: lts-11.11
+resolver: lts-12.9 
 allow-newer: true
