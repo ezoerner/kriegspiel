@@ -6,7 +6,7 @@ See https://en.wikipedia.org/wiki/Kriegspiel_(chess)
 
 # Build
 
-Install the ``stack` build tool (haskellstack.org) and run `stack install` in checkout directory
+Install the `stack` build tool (haskellstack.org) and run `stack install` in checkout directory
 
 ### Command Line Options
 
