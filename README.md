@@ -4,6 +4,10 @@ Kriegspiel is a chess variant where each player can see their own pieces, but no
 
 See https://en.wikipedia.org/wiki/Kriegspiel_(chess)
 
+# Build
+
+Install the ``stack` build tool (haskellstack.org) and run `stack install` in checkout directory
+
 ### Command Line Options
 
 ```
